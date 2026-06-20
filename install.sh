@@ -7,12 +7,59 @@ set -euo pipefail
 
 # ── colours ──────────────────────────────────────────────────
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
-BLUE='\033[0;34m'; BOLD='\033[1m'; NC='\033[0m'
+BLUE='\033[0;34m'; BOLD='\033[1m'; NC='\033[0m'; CYAN='\033[0;36m'
 
 info()    { echo -e "${GREEN}✔${NC}  $*"; }
 warn()    { echo -e "${YELLOW}⚠${NC}  $*"; }
 section() { echo -e "\n${BLUE}${BOLD}▶ $*${NC}"; }
 die()     { echo -e "${RED}✘  $*${NC}" >&2; exit 1; }
+
+# ── spinner ──────────────────────────────────────────────────
+_SPINNER_PID=""
+_SPINNER_FRAMES='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
+
+spin_start() {
+    local msg="$1"
+    (
+        local i=0
+        while true; do
+            i=$(( (i + 1) % 10 ))
+            printf "\r   ${CYAN}${_SPINNER_FRAMES:$i:1}${NC}  ${msg}..."
+            sleep 0.08
+        done
+    ) &
+    _SPINNER_PID=$!
+    disown "$_SPINNER_PID" 2>/dev/null || true
+}
+
+spin_stop() {
+    local label="${1:-}"
+    if [[ -n "$_SPINNER_PID" ]]; then
+        kill "$_SPINNER_PID" 2>/dev/null || true
+        wait "$_SPINNER_PID" 2>/dev/null || true
+        _SPINNER_PID=""
+    fi
+    printf "\r\033[K"
+    [[ -n "$label" ]] && info "$label"
+}
+
+# Run a command silently with a spinner; show full output on failure
+run_spin() {
+    local msg="$1"; shift
+    spin_start "$msg"
+    local log; log=$(mktemp)
+    if "$@" >"$log" 2>&1; then
+        spin_stop "$msg"
+    else
+        spin_stop
+        echo -e "${RED}✘  $msg failed${NC}"
+        echo -e "${YELLOW}--- output ---${NC}"
+        cat "$log"
+        rm -f "$log"
+        exit 1
+    fi
+    rm -f "$log"
+}
 
 # ── config ────────────────────────────────────────────────────
 INSTALL_DIR="/opt/clippr"
@@ -33,8 +80,10 @@ ${BLUE}${BOLD}╔═════════════════════
 
 # ── 1. System packages ────────────────────────────────────────
 section "1/8  System packages"
-apt-get update -qq
-apt-get install -y -qq \
+run_spin "Updating package lists" apt-get update -q
+echo -e "  ${CYAN}Installing system dependencies (this may take a minute)...${NC}"
+DEBIAN_FRONTEND=noninteractive apt-get install -y \
+    -o Dpkg::Progress-Fancy=1 \
     curl wget git ffmpeg \
     python3 python3-pip python3-venv \
     build-essential ca-certificates gnupg \
@@ -44,8 +93,10 @@ info "System packages installed"
 # ── 2. Node.js ────────────────────────────────────────────────
 section "2/8  Node.js ${NODE_MAJOR}"
 if ! command -v node &>/dev/null || [[ $(node -v | cut -d. -f1 | tr -d 'v') -lt $NODE_MAJOR ]]; then
-    curl -fsSL https://deb.nodesource.com/setup_${NODE_MAJOR}.x | bash - >/dev/null 2>&1
-    apt-get install -y -qq nodejs
+    run_spin "Downloading Node.js ${NODE_MAJOR} setup script" \
+        bash -c "curl -fsSL https://deb.nodesource.com/setup_${NODE_MAJOR}.x | bash -"
+    echo -e "  ${CYAN}Installing Node.js...${NC}"
+    DEBIAN_FRONTEND=noninteractive apt-get install -y -o Dpkg::Progress-Fancy=1 nodejs
 fi
 info "Node $(node -v) / npm $(npm -v)"
 
@@ -53,34 +104,42 @@ info "Node $(node -v) / npm $(npm -v)"
 section "3/8  Clippr source"
 if [[ -d "$INSTALL_DIR/.git" ]]; then
     warn "Found existing install at $INSTALL_DIR — pulling latest"
-    git -C "$INSTALL_DIR" pull --ff-only
+    run_spin "Pulling latest code" git -C "$INSTALL_DIR" pull --ff-only
 else
-    git clone "$REPO" "$INSTALL_DIR"
+    echo -e "  ${CYAN}Cloning repository...${NC}"
+    git clone --progress "$REPO" "$INSTALL_DIR" 2>&1 | \
+        grep --line-buffered -E '(Counting|Compressing|Receiving|Resolving|done\.)' | \
+        sed 's/^/  /' || true
+    [[ -d "$INSTALL_DIR/.git" ]] || git clone "$REPO" "$INSTALL_DIR"
 fi
 info "Source at $INSTALL_DIR"
 
 # ── 4. Python venv + deps ─────────────────────────────────────
 section "4/8  Python environment"
-python3 -m venv "$INSTALL_DIR/venv"
-"$INSTALL_DIR/venv/bin/pip" install -q --upgrade pip
-"$INSTALL_DIR/venv/bin/pip" install -q -r "$INSTALL_DIR/backend/requirements.txt"
+run_spin "Creating Python venv" python3 -m venv "$INSTALL_DIR/venv"
+run_spin "Upgrading pip" "$INSTALL_DIR/venv/bin/pip" install --upgrade pip
+echo -e "  ${CYAN}Installing Python dependencies...${NC}"
+"$INSTALL_DIR/venv/bin/pip" install --progress-bar on -r "$INSTALL_DIR/backend/requirements.txt"
 info "Python venv ready"
 
 # ── 5. yt-dlp (keep up-to-date binary) ───────────────────────
 section "5/8  yt-dlp"
-"$INSTALL_DIR/venv/bin/pip" install -q --upgrade yt-dlp
+echo -e "  ${CYAN}Upgrading yt-dlp...${NC}"
+"$INSTALL_DIR/venv/bin/pip" install --progress-bar on --upgrade yt-dlp
 info "yt-dlp $("$INSTALL_DIR/venv/bin/yt-dlp" --version)"
 
 # ── 6. Frontend build ─────────────────────────────────────────
 section "6/8  Frontend (React + Vite build)"
 cd "$INSTALL_DIR/frontend"
-npm install --silent --no-fund --no-audit
+echo -e "  ${CYAN}Installing npm packages...${NC}"
+npm install --no-fund --no-audit
+echo -e "  ${CYAN}Building frontend...${NC}"
 npm run build
 info "Frontend built → $INSTALL_DIR/frontend/dist"
 
 # ── 7. Directories & env ──────────────────────────────────────
 section "7/8  Configuration"
-mkdir -p "$INSTALL_DIR/clips" "$INSTALL_DIR/workspace"
+run_spin "Creating runtime directories" mkdir -p "$INSTALL_DIR/clips" "$INSTALL_DIR/workspace"
 
 if [[ ! -f "$INSTALL_DIR/.env" ]]; then
     echo ""
@@ -96,9 +155,10 @@ fi
 
 # ── 8a. Service user ─────────────────────────────────────────
 if ! id "$SERVICE_USER" &>/dev/null; then
-    useradd -r -s /usr/sbin/nologin -d "$INSTALL_DIR" "$SERVICE_USER"
+    run_spin "Creating service user '$SERVICE_USER'" \
+        useradd -r -s /usr/sbin/nologin -d "$INSTALL_DIR" "$SERVICE_USER"
 fi
-chown -R "$SERVICE_USER:$SERVICE_USER" "$INSTALL_DIR"
+run_spin "Setting file ownership" chown -R "$SERVICE_USER:$SERVICE_USER" "$INSTALL_DIR"
 
 # ── 8b. systemd — backend ─────────────────────────────────────
 section "8/8  Services"
@@ -167,15 +227,15 @@ NGINX
 ln -sf /etc/nginx/sites-available/clippr /etc/nginx/sites-enabled/clippr
 rm -f /etc/nginx/sites-enabled/default
 
-nginx -t
-systemctl enable --now nginx
-systemctl reload nginx
+run_spin "Testing nginx config" nginx -t
+run_spin "Enabling nginx" systemctl enable --now nginx
+run_spin "Reloading nginx" systemctl reload nginx
 info "nginx configured"
 
 # ── Start backend ─────────────────────────────────────────────
-systemctl daemon-reload
-systemctl enable clippr
-systemctl restart clippr
+run_spin "Reloading systemd" systemctl daemon-reload
+run_spin "Enabling Clippr service" systemctl enable clippr
+run_spin "Starting Clippr backend" systemctl restart clippr
 
 # Wait a moment and check it's running
 sleep 3
