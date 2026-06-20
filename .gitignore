@@ -1,0 +1,27 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+.env
+
+# Downloads / workspace
+clips/
+workspace/
+
+# SQLite
+clippr.db
+
+# Node
+frontend/node_modules/
+frontend/dist/
+
+# OS
+.DS_Store
+._*
+._.DS_Store
+
+# Old versions
+clippr-v1/
+docker/
+docker-compose.yml
