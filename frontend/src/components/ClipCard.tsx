@@ -295,7 +295,7 @@ export default function ClipCard({
           <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0)', transition: 'background 0.15s' }}
             onMouseEnter={e => (e.currentTarget.style.background = 'rgba(0,0,0,0.35)')}
             onMouseLeave={e => (e.currentTarget.style.background = 'rgba(0,0,0,0)')}>
-            <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'rgba(255,255,255,0.9)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, paddingLeft: 3, opacity: 0.85 }}>▶</div>
+            <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'rgba(255,255,255,0.9)', color: '#0c0e14', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, paddingLeft: 3, opacity: 0.85 }}>▶</div>
           </div>
 
           {/* Platform badge */}
