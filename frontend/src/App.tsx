@@ -465,6 +465,12 @@ export default function App() {
             </div>
           )}
         </div>
+
+        {/* Designed-by credit */}
+        <a href="https://m2-design.net" target="_blank" rel="noreferrer" title="Designed by M² Design"
+          style={{ flexShrink: 0, padding: '12px 20px', borderTop: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <img src="/m2-design-logo.png" alt="M² Design" style={{ height: 16, opacity: 0.85 }} />
+        </a>
       </aside>
 
       {/* ── Main ────────────────────────────────────────────────────────── */}
