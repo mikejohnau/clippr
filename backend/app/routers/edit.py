@@ -39,16 +39,43 @@ def _duration(path: str) -> float:
         return 0.0
 
 
-_FONT_CANDIDATES = [
-    "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
-    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-    "/System/Library/Fonts/Supplemental/Arial Bold.ttf",
-    "/System/Library/Fonts/Supplemental/Arial.ttf",
-]
+# font family id -> list of candidate file paths (Debian first, macOS fallback for local dev)
+_FONT_FAMILIES: dict[str, list[str]] = {
+    "sans-bold": [
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+        "/System/Library/Fonts/Supplemental/Arial Bold.ttf",
+    ],
+    "sans-regular": [
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        "/System/Library/Fonts/Supplemental/Arial.ttf",
+    ],
+    "serif-bold": [
+        "/usr/share/fonts/truetype/dejavu/DejaVuSerif-Bold.ttf",
+        "/System/Library/Fonts/Supplemental/Georgia Bold.ttf",
+    ],
+    "mono-bold": [
+        "/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf",
+        "/System/Library/Fonts/Supplemental/Courier New Bold.ttf",
+    ],
+}
+
+FONTS = {
+    "sans-bold": {"name": "Sans Bold"},
+    "sans-regular": {"name": "Sans Regular"},
+    "serif-bold": {"name": "Serif Bold"},
+    "mono-bold": {"name": "Mono Bold"},
+}
+
+# template id -> default fontsize used when the segment doesn't override it
+_TEMPLATE_DEFAULT_SIZE = {
+    "bold-bottom": 54,
+    "lower-third": 38,
+    "top-banner": 42,
+}
 
 
-def _find_font() -> str | None:
-    for path in _FONT_CANDIDATES:
+def _find_font(family: str) -> str | None:
+    for path in _FONT_FAMILIES.get(family, _FONT_FAMILIES["sans-bold"]):
         if os.path.exists(path):
             return path
     return None
@@ -63,6 +90,16 @@ def _escape_drawtext(text: str) -> str:
     )
 
 
+def _ffmpeg_color(hex_color: str) -> str:
+    """Convert a #RRGGBB(AA) string to ffmpeg's 0xRRGGBB(AA) color syntax."""
+    c = (hex_color or "#ffffff").strip()
+    if c.startswith("#"):
+        c = "0x" + c[1:]
+    elif not c.startswith("0x"):
+        c = "0x" + c
+    return c
+
+
 TEMPLATES = {
     "none": {"name": "No overlay"},
     "bold-bottom": {"name": "Bold Caption (Bottom)"},
@@ -71,33 +108,54 @@ TEMPLATES = {
 }
 
 
-def _build_overlay_filter(template: str, text: str) -> str | None:
+def _build_overlay_filter(
+    template: str, text: str, font_family: str, font_size: int, font_color: str,
+) -> str | None:
     text = text.strip()
     if template == "none" or not text:
         return None
 
-    font = _find_font()
+    font = _find_font(font_family)
     font_arg = f"fontfile='{font}':" if font else ""
     esc = _escape_drawtext(text)
+    size = font_size or _TEMPLATE_DEFAULT_SIZE.get(template, 42)
+    color = _ffmpeg_color(font_color)
 
     if template == "bold-bottom":
         return (
-            f"drawtext={font_arg}text='{esc}':fontsize=54:fontcolor=white:"
+            f"drawtext={font_arg}text='{esc}':fontsize={size}:fontcolor={color}:"
             f"borderw=4:bordercolor=black:x=(w-text_w)/2:y=h-text_h-70"
         )
     if template == "lower-third":
         return (
             "drawbox=x=0:y=ih-ih/6:w=iw:h=ih/6:color=black@0.55:t=fill,"
-            f"drawtext={font_arg}text='{esc}':fontsize=38:fontcolor=white:"
+            f"drawtext={font_arg}text='{esc}':fontsize={size}:fontcolor={color}:"
             "x=40:y=ih-ih/6+(ih/6-text_h)/2"
         )
     if template == "top-banner":
         return (
             "drawbox=x=0:y=0:w=iw:h=90:color=black@0.65:t=fill,"
-            f"drawtext={font_arg}text='{esc}':fontsize=42:fontcolor=white:"
+            f"drawtext={font_arg}text='{esc}':fontsize={size}:fontcolor={color}:"
             "x=(w-text_w)/2:y=(90-text_h)/2"
         )
     return None
+
+
+ASPECT_RATIOS = {
+    "original": {"name": "Original"},
+    "9:16": {"name": "9:16 (Shorts / Reels / TikTok)"},
+    "1:1": {"name": "1:1 (Square)"},
+    "4:5": {"name": "4:5 (Instagram feed)"},
+    "16:9": {"name": "16:9 (Landscape)"},
+}
+
+
+def _build_crop_filter(aspect_ratio: str) -> str | None:
+    if aspect_ratio == "original" or aspect_ratio not in ASPECT_RATIOS:
+        return None
+    tw, th = (int(x) for x in aspect_ratio.split(":"))
+    # crop the largest centered box matching the target ratio that fits inside the source frame
+    return f"crop=w='min(iw,ih*{tw}/{th})':h='min(ih,iw*{th}/{tw})'"
 
 
 # ── models ────────────────────────────────────────────────────────────────────
@@ -107,8 +165,12 @@ class Segment(BaseModel):
     end: float            # seconds
     mute: bool = False
     label: str = ""       # shown as filename hint
-    title: str = ""        # overlay text, empty = no overlay
-    template: str = "none" # one of TEMPLATES keys
+    title: str = ""              # overlay text, empty = no overlay
+    template: str = "none"       # one of TEMPLATES keys
+    font_family: str = "sans-bold"  # one of FONTS keys
+    font_size: int = 0           # 0 = use template default
+    font_color: str = "#ffffff"  # hex color
+    aspect_ratio: str = "original"  # one of ASPECT_RATIOS keys
 
 
 class ExtractRequest(BaseModel):
@@ -120,6 +182,16 @@ class ExtractRequest(BaseModel):
 @router.get("/templates")
 def list_templates():
     return [{"id": k, "name": v["name"]} for k, v in TEMPLATES.items()]
+
+
+@router.get("/fonts")
+def list_fonts():
+    return [{"id": k, "name": v["name"]} for k, v in FONTS.items()]
+
+
+@router.get("/aspect-ratios")
+def list_aspect_ratios():
+    return [{"id": k, "name": v["name"]} for k, v in ASPECT_RATIOS.items()]
 
 
 @router.get("/workspace")
@@ -178,12 +250,17 @@ def extract_segments(job_id: str, req: ExtractRequest):
         safe_label = "".join(c if c.isalnum() or c in "-_ " else "_" for c in label).strip()
         out_file = os.path.join(out_dir, f"{output_id}_{safe_label}.mp4")
 
-        overlay_filter = _build_overlay_filter(seg.template, seg.title)
+        crop_filter = _build_crop_filter(seg.aspect_ratio)
+        overlay_filter = _build_overlay_filter(
+            seg.template, seg.title, seg.font_family, seg.font_size, seg.font_color,
+        )
+        # crop first so overlay coordinates are relative to the final cropped frame
+        video_filter = ",".join(f for f in (crop_filter, overlay_filter) if f) or None
 
         cmd = ["ffmpeg", "-y", "-ss", str(seg.start), "-to", str(seg.end), "-i", src]
-        if overlay_filter:
-            # burning in an overlay requires re-encoding the video stream
-            cmd += ["-vf", overlay_filter, "-c:v", "libx264", "-preset", "veryfast", "-crf", "20"]
+        if video_filter:
+            # cropping or burning in an overlay requires re-encoding the video stream
+            cmd += ["-vf", video_filter, "-c:v", "libx264", "-preset", "veryfast", "-crf", "20"]
         else:
             cmd += ["-c:v", "copy"]
         if seg.mute:
