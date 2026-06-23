@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Query
 from app.services.youtube import search_youtube
+from app.services.reddit import search_reddit
 from app.models import Clip
 from pydantic import BaseModel
 
@@ -21,4 +22,9 @@ async def search(
     clips, next_page_token = await search_youtube(
         topic, max_per_platform, page_token, date_filter, duration_filter, min_views
     )
+    # Reddit search only runs on the first page — pagination here isn't
+    # comparable to YouTube's page_token, so we don't try to merge it across pages
+    if not page_token:
+        reddit_clips = await search_reddit(topic, max_per_platform)
+        clips = clips + reddit_clips
     return SearchResponse(clips=clips, next_page_token=next_page_token)
