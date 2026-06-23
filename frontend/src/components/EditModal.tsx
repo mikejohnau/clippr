@@ -338,7 +338,7 @@ export default function EditModal({ jobId, title, onClose }: {
               </div>
 
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                <button onClick={markOut} style={{ background: '#7c3aed', color: '#fff', fontSize: 12, fontWeight: 700, padding: '6px 12px', borderRadius: 7, whiteSpace: 'nowrap' }}>
+                <button onClick={markOut} style={{ background: 'var(--gold)', color: 'var(--sidebar)', fontSize: 12, fontWeight: 700, padding: '6px 12px', borderRadius: 7, whiteSpace: 'nowrap' }}>
                   ⏸ Mark Out
                 </button>
                 <input value={endInput} onChange={e => { setEndInput(e.target.value); setEnd(parseTime(e.target.value)) }}
@@ -359,7 +359,7 @@ export default function EditModal({ jobId, title, onClose }: {
                   <div style={{
                     position: 'absolute', top: -2, bottom: -2, width: 3,
                     left: `${(currentTime / duration) * 100}%`,
-                    background: '#f59e0b', borderRadius: 99,
+                    background: 'var(--gold)', borderRadius: 99,
                   }} />
                 </div>
               )}

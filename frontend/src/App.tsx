@@ -338,8 +338,8 @@ export default function App() {
         {/* Logo */}
         <div style={{ padding: '22px 20px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
-            <div style={{ fontSize: 19, fontWeight: 800, color: '#fff', letterSpacing: '-0.5px', lineHeight: 1 }}>
-              Clip<span style={{ color: '#3b82f6' }}>pr</span>
+            <div className="font-display" style={{ fontSize: 24, color: '#fff', lineHeight: 1 }}>
+              Clip<span style={{ color: 'var(--accent)' }}>pr</span>
             </div>
             <div style={{ color: 'var(--sidebar-text)', fontSize: 10, marginTop: 3, letterSpacing: '0.04em' }}>Viral clip discovery</div>
           </div>
@@ -360,11 +360,11 @@ export default function App() {
           {navItems.map(item => (
             <button key={item.view} onClick={() => nav(item.view)} style={{
               display: 'flex', alignItems: 'center', gap: 9, width: '100%', textAlign: 'left',
-              background: item.active ? 'rgba(59,130,246,0.15)' : 'transparent',
+              background: item.active ? 'rgba(240,74,0,0.18)' : 'transparent',
               color: item.active ? '#fff' : 'var(--sidebar-text)',
               padding: '8px 10px', borderRadius: 8, fontSize: 13,
               fontWeight: item.active ? 600 : 400,
-              borderLeft: item.active ? '3px solid #3b82f6' : '3px solid transparent',
+              borderLeft: item.active ? '3px solid var(--accent)' : '3px solid transparent',
               transition: 'all 0.12s',
             }}>
               <span style={{ fontSize: 15, lineHeight: 1 }}>{item.icon}</span>
@@ -382,9 +382,9 @@ export default function App() {
                 return (
                   <button key={c.id} onClick={() => setActive(c.id)} style={{
                     display: 'block', width: '100%', textAlign: 'left',
-                    background: activeId === c.id ? 'rgba(59,130,246,0.15)' : 'transparent',
+                    background: activeId === c.id ? 'rgba(240,74,0,0.18)' : 'transparent',
                     color: activeId === c.id ? '#fff' : 'var(--sidebar-text)',
-                    borderLeft: activeId === c.id ? '3px solid #3b82f6' : '3px solid transparent',
+                    borderLeft: activeId === c.id ? '3px solid var(--accent)' : '3px solid transparent',
                     padding: '6px 10px', borderRadius: 8, fontSize: 12, marginBottom: 1,
                   }}>{c.name}</button>
                 )
@@ -453,9 +453,9 @@ export default function App() {
                 <button key={t.topic} onClick={() => { nav('search'); setSelectedTrend(t) }} style={{
                   display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                   width: '100%', textAlign: 'left',
-                  background: selectedTrend?.topic === t.topic ? 'rgba(59,130,246,0.15)' : 'transparent',
+                  background: selectedTrend?.topic === t.topic ? 'rgba(240,74,0,0.18)' : 'transparent',
                   color: selectedTrend?.topic === t.topic ? '#fff' : 'var(--sidebar-text)',
-                  borderLeft: selectedTrend?.topic === t.topic ? '3px solid #3b82f6' : '3px solid transparent',
+                  borderLeft: selectedTrend?.topic === t.topic ? '3px solid var(--accent)' : '3px solid transparent',
                   padding: '5px 10px', borderRadius: 8, fontSize: 12, marginBottom: 1, gap: 6,
                 }}>
                   <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{t.topic}</span>
@@ -502,7 +502,7 @@ export default function App() {
                 ⚙ Filters{(dateFilter || durationFilter || minViews) ? ' ●' : ''}
               </button>
               <button type="submit" disabled={loading} style={{
-                background: 'linear-gradient(135deg, #ff0000, #cc0000)', color: '#fff', fontWeight: 700,
+                background: 'var(--accent)', color: '#fff', fontWeight: 700,
                 padding: '0 18px', height: 38, whiteSpace: 'nowrap', opacity: loading ? 0.7 : 1,
                 borderRadius: 8, flexShrink: 0, fontSize: 13,
               }}>
@@ -589,7 +589,7 @@ export default function App() {
 
             {(manualUrls.tiktok.trim() || manualUrls.instagram.trim()) && (
               <button onClick={() => search()}
-                style={{ background: 'linear-gradient(135deg, #2563eb, #1d4ed8)', color: '#fff', fontWeight: 700, padding: '0 16px', height: 38, borderRadius: 8, flexShrink: 0, fontSize: 13 }}>
+                style={{ background: 'var(--accent)', color: '#fff', fontWeight: 700, padding: '0 16px', height: 38, borderRadius: 8, flexShrink: 0, fontSize: 13 }}>
                 Add clips
               </button>
             )}

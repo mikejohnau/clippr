@@ -368,7 +368,7 @@ export default function ClipCard({
                     {info.label}
                   </div>
                   {info.action && onOpenInstagramSettings ? (
-                    <button onClick={onOpenInstagramSettings} style={{ height: 32, padding: '0 10px', background: '#7c3aed', color: '#fff', fontWeight: 700, border: 'none', fontSize: 12, borderRadius: 7, whiteSpace: 'nowrap' }}>
+                    <button onClick={onOpenInstagramSettings} style={{ height: 32, padding: '0 10px', background: 'var(--accent)', color: '#fff', fontWeight: 700, border: 'none', fontSize: 12, borderRadius: 7, whiteSpace: 'nowrap' }}>
                       {info.action}
                     </button>
                   ) : (
@@ -379,11 +379,11 @@ export default function ClipCard({
                 </div>
               )
             })() : job?.status === 'done' ? (
-              <button onClick={() => setShowEdit(true)} style={{ flex: 1, height: 32, background: '#7c3aed', color: '#fff', fontWeight: 700, fontSize: 12, borderRadius: 7 }}>
+              <button onClick={() => setShowEdit(true)} style={{ flex: 1, height: 32, background: 'var(--accent)', color: '#fff', fontWeight: 700, fontSize: 12, borderRadius: 7 }}>
                 ✂ Open Editor
               </button>
             ) : (
-              <button onClick={startEdit} disabled={polling} style={{ flex: 1, height: 32, background: polling ? 'var(--surface2)' : '#7c3aed', color: polling ? 'var(--muted)' : '#fff', border: polling ? '1px solid var(--border)' : 'none', fontWeight: 700, fontSize: 12, borderRadius: 7 }}>
+              <button onClick={startEdit} disabled={polling} style={{ flex: 1, height: 32, background: polling ? 'var(--surface2)' : 'var(--accent)', color: polling ? 'var(--muted)' : '#fff', border: polling ? '1px solid var(--border)' : 'none', fontWeight: 700, fontSize: 12, borderRadius: 7 }}>
                 {polling ? (job?.status === 'queued' ? 'Preparing…' : 'Downloading…') : '✂ Edit'}
               </button>
             )}
