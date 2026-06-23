@@ -19,6 +19,16 @@ ASPECT_CANVAS = {
 }
 
 
+POSITIONS = {
+    "top-left": {"name": "Top left", "x": "40", "y": "40"},
+    "top-right": {"name": "Top right", "x": "w-text_w-40", "y": "40"},
+    "top-center": {"name": "Top center", "x": "(w-text_w)/2", "y": "40"},
+    "bottom-left": {"name": "Bottom left", "x": "40", "y": "h-text_h-40"},
+    "bottom-right": {"name": "Bottom right", "x": "w-text_w-40", "y": "h-text_h-40"},
+    "bottom-center": {"name": "Bottom center", "x": "(w-text_w)/2", "y": "h-text_h-40"},
+}
+
+
 class RankingItem(BaseModel):
     job_id: str
     start: float
@@ -29,6 +39,7 @@ class RankingItem(BaseModel):
     font_family: str = "sans-bold"
     font_size: int = 0            # 0 = template default
     font_color: str = "#ffffff"
+    position: str = "top-left"    # one of POSITIONS keys
 
 
 class RankingBuildRequest(BaseModel):
@@ -36,15 +47,16 @@ class RankingBuildRequest(BaseModel):
     aspect_ratio: str = "9:16"
 
 
-def _rank_overlay_filter(label: str, font_family: str, font_size: int, font_color: str) -> str:
+def _rank_overlay_filter(label: str, font_family: str, font_size: int, font_color: str, position: str) -> str:
     font = _find_font(font_family)
     font_arg = f"fontfile='{font}':" if font else ""
     esc = _escape_drawtext(label)
     size = font_size or 90
     color = _ffmpeg_color(font_color)
+    pos = POSITIONS.get(position, POSITIONS["top-left"])
     return (
         f"drawtext={font_arg}text='{esc}':fontsize={size}:fontcolor={color}:"
-        f"borderw=5:bordercolor=black:x=40:y=40"
+        f"borderw=5:bordercolor=black:x={pos['x']}:y={pos['y']}"
     )
 
 
@@ -69,7 +81,7 @@ def build_ranking(req: RankingBuildRequest):
                 raise HTTPException(400, f"Item {i + 1} has an invalid trim range")
 
             label = (item.label or "").strip() or f"#{item.rank}"
-            overlay = _rank_overlay_filter(label, item.font_family, item.font_size, item.font_color)
+            overlay = _rank_overlay_filter(label, item.font_family, item.font_size, item.font_color, item.position)
             vf = (
                 f"scale={canvas_w}:{canvas_h}:force_original_aspect_ratio=increase,"
                 f"crop={canvas_w}:{canvas_h},{overlay}"

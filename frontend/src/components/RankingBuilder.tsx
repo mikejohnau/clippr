@@ -26,6 +26,15 @@ const ASPECT_RATIOS = [
   { id: '16:9', name: '16:9 — Landscape' },
 ]
 
+const POSITIONS = [
+  { id: 'top-left', name: 'Top left' },
+  { id: 'top-center', name: 'Top center' },
+  { id: 'top-right', name: 'Top right' },
+  { id: 'bottom-left', name: 'Bottom left' },
+  { id: 'bottom-center', name: 'Bottom center' },
+  { id: 'bottom-right', name: 'Bottom right' },
+]
+
 function fmt(s: number) {
   const m = Math.floor(s / 60)
   const sec = (s % 60).toFixed(1)
@@ -168,7 +177,9 @@ export default function RankingBuilder({ projectClips, onRemove }: {
   const [editingRowId, setEditingRowId] = useState<number | null>(null)
   const [aspectRatio, setAspectRatio] = useState('9:16')
   const [fontFamily, setFontFamily] = useState('sans-bold')
+  const [fontSize, setFontSize] = useState(90)
   const [fontColor, setFontColor] = useState('#ffffff')
+  const [position, setPosition] = useState('top-left')
   const [building, setBuilding] = useState(false)
   const [result, setResult] = useState<{ output_id: string; filename: string } | null>(null)
   const [buildError, setBuildError] = useState('')
@@ -247,7 +258,7 @@ export default function RankingBuilder({ projectClips, onRemove }: {
         const it = items[pc.row_id]
         return {
           job_id: it.jobId, start: it.start, end: it.end, mute: it.mute,
-          rank: n - i, label: it.label, font_family: fontFamily, font_size: 0, font_color: fontColor,
+          rank: n - i, label: it.label, font_family: fontFamily, font_size: fontSize, font_color: fontColor, position,
         }
       })
       const res = await fetch('/api/ranking/build', {
@@ -362,16 +373,49 @@ export default function RankingBuilder({ projectClips, onRemove }: {
       )}
 
       {orderedClips.length > 0 && (
-        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-            <select value={aspectRatio} onChange={e => setAspectRatio(e.target.value)} style={{ height: 34, fontSize: 12, width: 'auto' }}>
-              {ASPECT_RATIOS.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-            </select>
-            <select value={fontFamily} onChange={e => setFontFamily(e.target.value)} style={{ height: 34, fontSize: 12, width: 'auto' }}>
-              {FONTS.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
-            </select>
-            <input type="color" value={fontColor} onChange={e => setFontColor(e.target.value)}
-              style={{ width: 38, height: 34, padding: 2, border: '1px solid var(--border)', borderRadius: 7, background: 'none' }} />
+        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>Output</div>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+              <label style={{ fontSize: 11, color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: 5 }}>
+                Aspect ratio
+                <select value={aspectRatio} onChange={e => setAspectRatio(e.target.value)} style={{ height: 32, fontSize: 12, width: 'auto' }}>
+                  {ASPECT_RATIOS.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                </select>
+              </label>
+            </div>
+          </div>
+
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>Rank label overlay (the "#N" badge burned into each clip)</div>
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+              <label style={{ fontSize: 11, color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: 5 }}>
+                Position
+                <select value={position} onChange={e => setPosition(e.target.value)} style={{ height: 32, fontSize: 12, width: 'auto' }}>
+                  {POSITIONS.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>
+              </label>
+              <label style={{ fontSize: 11, color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: 5 }}>
+                Font
+                <select value={fontFamily} onChange={e => setFontFamily(e.target.value)} style={{ height: 32, fontSize: 12, width: 'auto' }}>
+                  {FONTS.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+                </select>
+              </label>
+              <label style={{ fontSize: 11, color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: 5 }}>
+                Size
+                <input type="number" min={20} max={200} step={5} value={fontSize}
+                  onChange={e => setFontSize(parseInt(e.target.value, 10) || 90)}
+                  style={{ width: 56, height: 32, fontSize: 12 }} />
+              </label>
+              <label style={{ fontSize: 11, color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: 5 }}>
+                Color
+                <input type="color" value={fontColor} onChange={e => setFontColor(e.target.value)}
+                  style={{ width: 38, height: 32, padding: 2, border: '1px solid var(--border)', borderRadius: 7, background: 'none' }} />
+              </label>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', borderTop: '1px solid var(--border)', paddingTop: 12 }}>
             <button onClick={build} disabled={!canBuild || building} style={{
               background: canBuild && !building ? 'var(--accent)' : 'var(--surface2)',
               color: canBuild && !building ? '#fff' : 'var(--muted)',
