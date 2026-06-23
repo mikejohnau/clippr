@@ -1,11 +1,21 @@
 import { useState, useEffect, useRef } from 'react'
-import { Clip, Project, ProjectClip } from './types'
+import { Clip, Project, ProjectClip, ProjectTemplate } from './types'
 import ClipCard from './components/ClipCard'
 import ChannelCard from './components/ChannelCard'
 import SettingsModal from './components/SettingsModal'
 import HelpModal from './components/HelpModal'
+import RankingBuilder from './components/RankingBuilder'
 
 const MAX_HISTORY = 10
+
+const PROJECT_TEMPLATES: { id: ProjectTemplate; name: string; description: string }[] = [
+  { id: 'general', name: 'General', description: 'A plain project — save and organize clips with notes.' },
+  { id: 'ranking', name: 'Ranking video', description: 'Sequence multiple clips into one ordered countdown video with rank-label overlays.' },
+  { id: 'commentary', name: 'Video commentary', description: 'One main clip with a commentary/reaction overlay.' },
+  { id: 'split_screen', name: 'Split-screen video', description: 'Two clips composited side-by-side or stacked.' },
+  { id: 'image_story', name: 'Still image story', description: 'A static image + text layout, not a video edit.' },
+  { id: 'text_story', name: 'Text story', description: 'A text-only narrative format, not a video edit.' },
+]
 
 function detectPlatform(url: string): 'tiktok' | 'instagram' | null {
   if (/tiktok\.com/i.test(url)) return 'tiktok'
@@ -101,6 +111,7 @@ export default function App() {
   const [noteText, setNoteText] = useState('')
   const [creatingProject, setCreatingProject] = useState(false)
   const [newProjectName, setNewProjectName] = useState('')
+  const [newProjectTemplate, setNewProjectTemplate] = useState<ProjectTemplate>('general')
   const [renamingId, setRenamingId] = useState<string | null>(null)
   const [renameText, setRenameText] = useState('')
 
@@ -155,9 +166,10 @@ export default function App() {
     if (!newProjectName.trim()) return
     const p = await fetch('/api/projects/', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: newProjectName.trim() }),
+      body: JSON.stringify({ name: newProjectName.trim(), template: newProjectTemplate }),
     }).then(r => r.json())
     setNewProjectName('')
+    setNewProjectTemplate('general')
     setCreatingProject(false)
     await loadProjects()
     setActiveProjectId(p.id)
@@ -472,11 +484,19 @@ export default function App() {
                 </div>
               ))}
               {creatingProject ? (
-                <div style={{ display: 'flex', gap: 4, padding: '0 10px', marginTop: 6 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 5, padding: '0 10px', marginTop: 6 }}>
                   <input autoFocus value={newProjectName} onChange={e => setNewProjectName(e.target.value)}
                     onKeyDown={e => { if (e.key === 'Enter') createProject(); if (e.key === 'Escape') setCreatingProject(false) }}
-                    placeholder="Project name…" style={{ flex: 1, fontSize: 12, padding: '5px 8px', background: 'rgba(255,255,255,0.08)', color: '#fff', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 5 }} />
-                  <button onClick={createProject} style={{ background: 'var(--accent)', color: '#fff', fontSize: 12, padding: '5px 9px', borderRadius: 5 }}>+</button>
+                    placeholder="Project name…" style={{ fontSize: 12, padding: '5px 8px', background: 'rgba(255,255,255,0.08)', color: '#fff', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 5 }} />
+                  <select value={newProjectTemplate} onChange={e => setNewProjectTemplate(e.target.value as ProjectTemplate)}
+                    title={PROJECT_TEMPLATES.find(t => t.id === newProjectTemplate)?.description}
+                    style={{ fontSize: 12, padding: '5px 8px', background: 'rgba(255,255,255,0.08)', color: '#fff', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 5 }}>
+                    {PROJECT_TEMPLATES.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                  </select>
+                  <div style={{ display: 'flex', gap: 4 }}>
+                    <button onClick={createProject} style={{ flex: 1, background: 'var(--accent)', color: '#fff', fontSize: 12, padding: '5px 9px', borderRadius: 5 }}>Create</button>
+                    <button onClick={() => setCreatingProject(false)} style={{ background: 'none', color: 'var(--sidebar-text)', border: '1px solid rgba(255,255,255,0.15)', fontSize: 12, padding: '5px 9px', borderRadius: 5 }}>Cancel</button>
+                  </div>
                 </div>
               ) : (
                 <button onClick={() => setCreatingProject(true)} style={{ display: 'block', width: '100%', textAlign: 'left', background: 'none', color: 'var(--sidebar-text)', padding: '6px 10px', fontSize: 12, marginTop: 4 }}>
@@ -669,6 +689,11 @@ export default function App() {
                   <span style={{ fontWeight: 400, fontSize: 13, color: 'var(--muted)' }}>{projectClips.length} clip{projectClips.length !== 1 ? 's' : ''}</span>
                 </div>
               </div>
+
+              {projects.find(p => p.id === activeProjectId)?.template === 'ranking' && (
+                <RankingBuilder projectClips={projectClips} />
+              )}
+
               {projectClips.length === 0 ? (
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '80px 0', color: 'var(--muted)', textAlign: 'center', gap: 8 }}>
                   <div style={{ fontSize: 36 }}>📁</div>

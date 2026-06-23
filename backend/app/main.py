@@ -6,7 +6,7 @@ import os, urllib.request
 
 from app.db import init_db
 from app.routers import search, download, meta, trending, channels
-from app.routers import projects, downloads_history, edit, settings
+from app.routers import projects, downloads_history, edit, settings, ranking
 
 app = FastAPI(title="Clippr")
 
@@ -41,6 +41,7 @@ app.include_router(projects.router, prefix="/api/projects")
 app.include_router(downloads_history.router, prefix="/api/downloads-history")
 app.include_router(edit.router, prefix="/api/edit")
 app.include_router(settings.router, prefix="/api/settings")
+app.include_router(ranking.router, prefix="/api/ranking")
 
 CLIPS_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "clips")
 CLIPS_DIR = os.path.abspath(CLIPS_DIR)

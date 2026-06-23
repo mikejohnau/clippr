@@ -5,8 +5,18 @@ from app.db import get_db
 
 router = APIRouter()
 
+PROJECT_TEMPLATES = {
+    "general": "General",
+    "ranking": "Ranking video",
+    "commentary": "Video commentary",
+    "split_screen": "Split-screen video",
+    "image_story": "Still image story",
+    "text_story": "Text story",
+}
+
 class ProjectIn(BaseModel):
     name: str
+    template: str = "general"
 
 class ClipIn(BaseModel):
     clip: dict
@@ -15,18 +25,23 @@ class ClipIn(BaseModel):
 class NotesIn(BaseModel):
     notes: str
 
+@router.get("/templates")
+def list_project_templates():
+    return [{"id": k, "name": v} for k, v in PROJECT_TEMPLATES.items()]
+
 @router.get("/")
 def list_projects():
     with get_db() as conn:
-        rows = conn.execute("SELECT id, name, created_at FROM projects ORDER BY created_at").fetchall()
+        rows = conn.execute("SELECT id, name, template, created_at FROM projects ORDER BY created_at").fetchall()
         return [dict(r) for r in rows]
 
 @router.post("/")
 def create_project(body: ProjectIn):
     pid = str(uuid.uuid4())[:8]
+    template = body.template if body.template in PROJECT_TEMPLATES else "general"
     with get_db() as conn:
-        conn.execute("INSERT INTO projects (id, name) VALUES (?, ?)", (pid, body.name.strip()))
-    return {"id": pid, "name": body.name.strip()}
+        conn.execute("INSERT INTO projects (id, name, template) VALUES (?, ?, ?)", (pid, body.name.strip(), template))
+    return {"id": pid, "name": body.name.strip(), "template": template}
 
 @router.patch("/{project_id}")
 def rename_project(project_id: str, body: ProjectIn):

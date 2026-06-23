@@ -16,9 +16,12 @@ export interface Clip {
   category?: string
 }
 
+export type ProjectTemplate = 'general' | 'ranking' | 'commentary' | 'split_screen' | 'image_story' | 'text_story'
+
 export interface Project {
   id: string
   name: string
+  template: ProjectTemplate
   created_at: string
 }
 

@@ -14,6 +14,7 @@ def init_db():
             CREATE TABLE IF NOT EXISTS projects (
                 id       TEXT PRIMARY KEY,
                 name     TEXT NOT NULL,
+                template TEXT NOT NULL DEFAULT 'general',
                 created_at TEXT NOT NULL DEFAULT (datetime('now'))
             );
             CREATE TABLE IF NOT EXISTS project_clips (
@@ -35,3 +36,7 @@ def init_db():
             -- seed a Default project if none exist
             INSERT OR IGNORE INTO projects (id, name) VALUES ('default', 'Default');
         """)
+        # migrate existing DBs created before the template column existed
+        cols = {row["name"] for row in conn.execute("PRAGMA table_info(projects)").fetchall()}
+        if "template" not in cols:
+            conn.execute("ALTER TABLE projects ADD COLUMN template TEXT NOT NULL DEFAULT 'general'")
