@@ -147,19 +147,10 @@ if [[ ! -f "$INSTALL_DIR/.env" ]]; then
     echo -e "  Get one free at: ${BLUE}https://console.cloud.google.com/${NC}"
     echo ""
     read -rp "  Enter your YouTube API key (or press Enter to skip and set later): " YT_KEY
-    echo ""
-    echo -e "  ${BOLD}Optional: Reddit search.${NC} Create a free app at ${BLUE}https://www.reddit.com/prefs/apps${NC} (type: script)."
-    echo ""
-    read -rp "  Enter your Reddit client ID (or press Enter to skip): " REDDIT_ID
-    read -rp "  Enter your Reddit client secret (or press Enter to skip): " REDDIT_SECRET
-    {
-        echo "YOUTUBE_API_KEY=${YT_KEY}"
-        echo "REDDIT_CLIENT_ID=${REDDIT_ID}"
-        echo "REDDIT_CLIENT_SECRET=${REDDIT_SECRET}"
-    } > "$INSTALL_DIR/.env"
+    echo "YOUTUBE_API_KEY=${YT_KEY}" > "$INSTALL_DIR/.env"
     info ".env created at $INSTALL_DIR/.env"
 else
-    warn ".env already exists — skipping (edit $INSTALL_DIR/.env to add/change API keys)"
+    warn ".env already exists — skipping (edit $INSTALL_DIR/.env to change the API key)"
 fi
 
 # ── 8a. Service user ─────────────────────────────────────────

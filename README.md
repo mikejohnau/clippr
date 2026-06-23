@@ -8,7 +8,6 @@ A self-hostable viral clip discovery and editing tool. Find trending videos acro
 
 ### Discovery
 - **YouTube search** — search by topic, sorted by view count, with filters for date range, duration, and minimum views
-- **Reddit search** — same topic search also pulls matching video posts from r/all (requires a free Reddit API app, see Setup)
 - **YouTube Trending** — browse the mostPopular chart filtered by category (Gaming, Sports, Music, etc.)
 - **Rising Channels** — momentum-scored channel discovery (recent views ÷ subscribers)
 - **Google Trends** — daily trending topics by region, with related news articles and one-click YouTube search
@@ -73,11 +72,6 @@ Create `backend/.env` (or export directly):
 
 ```
 YOUTUBE_API_KEY=your_key_here
-
-# Optional — enables Reddit results in search. Create a free "script" app
-# at https://www.reddit.com/prefs/apps to get these.
-REDDIT_CLIENT_ID=your_client_id
-REDDIT_CLIENT_SECRET=your_client_secret
 ```
 
 Start the server:
