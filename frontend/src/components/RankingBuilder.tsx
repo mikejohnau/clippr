@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ProjectClip } from '../types'
 
 interface ItemState {
@@ -45,6 +45,33 @@ export default function RankingBuilder({ projectClips, onRemove }: {
   const [building, setBuilding] = useState(false)
   const [result, setResult] = useState<{ output_id: string; filename: string } | null>(null)
   const [buildError, setBuildError] = useState('')
+  const videoRefs = useRef<Record<number, HTMLVideoElement | null>>({})
+
+  function markIn(rowId: number) {
+    const v = videoRefs.current[rowId]
+    if (!v) return
+    update(rowId, { start: v.currentTime })
+  }
+
+  function markOut(rowId: number) {
+    const v = videoRefs.current[rowId]
+    if (!v) return
+    update(rowId, { end: v.currentTime })
+  }
+
+  function previewSegment(rowId: number) {
+    const v = videoRefs.current[rowId]
+    const it = items[rowId]
+    if (!v || !it) return
+    v.currentTime = it.start
+    v.play()
+    const check = setInterval(() => {
+      if (!v || v.currentTime >= it.end) {
+        v?.pause()
+        clearInterval(check)
+      }
+    }, 100)
+  }
 
   // Keep order/items in sync with whatever clips are actually saved to the project
   useEffect(() => {
@@ -174,7 +201,7 @@ export default function RankingBuilder({ projectClips, onRemove }: {
                     </div>
                   </div>
 
-                  {pc.clip.thumbnail && (
+                  {!it.jobId && pc.clip.thumbnail && (
                     <img src={pc.clip.platform === 'youtube' ? pc.clip.thumbnail : `/api/imgproxy?url=${encodeURIComponent(pc.clip.thumbnail)}`}
                       alt="" style={{ width: 100, height: 64, objectFit: 'cover', borderRadius: 6, flexShrink: 0 }} />
                   )}
@@ -201,25 +228,41 @@ export default function RankingBuilder({ projectClips, onRemove }: {
                     )}
 
                     {it.jobId && !it.downloading && (
-                      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                        <label style={{ fontSize: 11, color: 'var(--muted)' }}>Start
-                          <input type="number" min={0} max={it.duration} step={0.1} value={it.start}
-                            onChange={e => update(pc.row_id, { start: parseFloat(e.target.value) || 0 })}
-                            style={{ width: 64, height: 28, fontSize: 12, marginLeft: 4 }} />
-                        </label>
-                        <label style={{ fontSize: 11, color: 'var(--muted)' }}>End
-                          <input type="number" min={0} max={it.duration} step={0.1} value={it.end}
-                            onChange={e => update(pc.row_id, { end: parseFloat(e.target.value) || 0 })}
-                            style={{ width: 64, height: 28, fontSize: 12, marginLeft: 4 }} />
-                        </label>
-                        <span style={{ fontSize: 11, color: 'var(--muted)' }}>of {fmt(it.duration)}</span>
-                        <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: 'var(--muted)' }}>
-                          <input type="checkbox" checked={it.mute} onChange={e => update(pc.row_id, { mute: e.target.checked })} style={{ width: 'auto' }} />
-                          Mute
-                        </label>
-                        <input value={it.label} onChange={e => update(pc.row_id, { label: e.target.value })}
-                          placeholder={`Label (default "#${orderedClips.length - i}")`}
-                          style={{ flex: 1, minWidth: 120, height: 28, fontSize: 12 }} />
+                      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                        <video ref={el => { videoRefs.current[pc.row_id] = el }}
+                          src={`/api/edit/workspace/${it.jobId}/stream`} controls
+                          style={{ width: 220, maxHeight: 160, borderRadius: 6, background: '#000', flexShrink: 0 }} />
+
+                        <div style={{ flex: 1, minWidth: 220, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                            <button onClick={() => markIn(pc.row_id)} style={{ background: 'var(--accent)', color: '#fff', fontWeight: 700, fontSize: 11, padding: '5px 10px', borderRadius: 6, whiteSpace: 'nowrap' }}>
+                              ▶ Mark In
+                            </button>
+                            <input type="number" min={0} max={it.duration} step={0.1} value={it.start}
+                              onChange={e => update(pc.row_id, { start: parseFloat(e.target.value) || 0 })}
+                              style={{ width: 60, height: 26, fontSize: 12 }} />
+                            <button onClick={() => markOut(pc.row_id)} style={{ background: 'var(--gold)', color: 'var(--sidebar)', fontWeight: 700, fontSize: 11, padding: '5px 10px', borderRadius: 6, whiteSpace: 'nowrap' }}>
+                              ⏸ Mark Out
+                            </button>
+                            <input type="number" min={0} max={it.duration} step={0.1} value={it.end}
+                              onChange={e => update(pc.row_id, { end: parseFloat(e.target.value) || 0 })}
+                              style={{ width: 60, height: 26, fontSize: 12 }} />
+                            <span style={{ fontSize: 11, color: 'var(--muted)' }}>of {fmt(it.duration)}</span>
+                            <button onClick={() => previewSegment(pc.row_id)} disabled={it.end <= it.start}
+                              style={{ background: 'var(--surface2)', border: '1px solid var(--border)', color: 'var(--text)', fontSize: 11, padding: '5px 10px', borderRadius: 6 }}>
+                              Preview
+                            </button>
+                          </div>
+                          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: 'var(--muted)' }}>
+                              <input type="checkbox" checked={it.mute} onChange={e => update(pc.row_id, { mute: e.target.checked })} style={{ width: 'auto' }} />
+                              Mute
+                            </label>
+                            <input value={it.label} onChange={e => update(pc.row_id, { label: e.target.value })}
+                              placeholder={`Label (default "#${orderedClips.length - i}")`}
+                              style={{ flex: 1, minWidth: 120, height: 28, fontSize: 12 }} />
+                          </div>
+                        </div>
                       </div>
                     )}
                   </div>

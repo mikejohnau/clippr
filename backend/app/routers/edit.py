@@ -1,11 +1,72 @@
-from fastapi import APIRouter, HTTPException
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import FileResponse, StreamingResponse, Response
 from pydantic import BaseModel
-import os, glob, uuid, subprocess, json, pathlib, shutil
+import os, re, glob, uuid, subprocess, json, pathlib, shutil
 
 from app.routers.download import jobs, CLIPS_DIR
 
 router = APIRouter()
+
+_RANGE_RE = re.compile(r"bytes=(\d*)-(\d*)")
+
+
+def ranged_file_response(path: str, request: Request, media_type: str = "video/mp4") -> Response:
+    """Serve a file with real HTTP Range support (206 Partial Content).
+
+    Starlette's FileResponse in this dependency version always returns the
+    whole file with 200 regardless of a Range header, which breaks seeking
+    in <video> players — browsers expect 206 + Content-Range to scrub.
+    """
+    file_size = os.path.getsize(path)
+    range_header = request.headers.get("range")
+
+    if not range_header:
+        return FileResponse(path, media_type=media_type)
+
+    match = _RANGE_RE.match(range_header)
+    if not match:
+        return FileResponse(path, media_type=media_type)
+
+    start_str, end_str = match.groups()
+    if not start_str:
+        # Suffix range, e.g. "bytes=-500" means "the last 500 bytes" —
+        # not "from byte 0 to 500". Browsers use this to probe the end of
+        # an MP4 for its metadata atom when it isn't at the front of the file.
+        if not end_str:
+            return Response(status_code=416, headers={"Content-Range": f"bytes */{file_size}"})
+        suffix_len = int(end_str)
+        start = max(0, file_size - suffix_len)
+        end = file_size - 1
+    else:
+        start = int(start_str)
+        end = int(end_str) if end_str else file_size - 1
+    end = min(end, file_size - 1)
+    if start > end or start >= file_size:
+        return Response(status_code=416, headers={"Content-Range": f"bytes */{file_size}"})
+
+    chunk_size = end - start + 1
+
+    def _iterfile():
+        with open(path, "rb") as f:
+            f.seek(start)
+            remaining = chunk_size
+            while remaining > 0:
+                chunk = f.read(min(64 * 1024, remaining))
+                if not chunk:
+                    break
+                remaining -= len(chunk)
+                yield chunk
+
+    return StreamingResponse(
+        _iterfile(),
+        status_code=206,
+        media_type=media_type,
+        headers={
+            "Content-Range": f"bytes {start}-{end}/{file_size}",
+            "Accept-Ranges": "bytes",
+            "Content-Length": str(chunk_size),
+        },
+    )
 
 # output_id -> absolute file path (in-memory; fine for single-server self-hosted use)
 _outputs: dict[str, str] = {}
@@ -225,12 +286,27 @@ def workspace_info(job_id: str):
 
 
 @router.get("/workspace/{job_id}/stream")
-def stream_source(job_id: str):
+def stream_source(job_id: str, request: Request):
     """Stream the source video with range support so the browser player can seek."""
     src = _source_path(job_id)
     if not src or not os.path.exists(src):
         raise HTTPException(404, "Source not found")
-    return FileResponse(src, media_type="video/mp4")
+    return ranged_file_response(src, request)
+
+
+@router.head("/workspace/{job_id}/stream")
+def stream_source_head(job_id: str):
+    """Browsers' video engines probe with HEAD to check Accept-Ranges/
+    Content-Length before deciding how to fetch the body — without this,
+    Chrome's <video> stalls forever waiting for a response that never comes."""
+    src = _source_path(job_id)
+    if not src or not os.path.exists(src):
+        raise HTTPException(404, "Source not found")
+    return Response(headers={
+        "Content-Length": str(os.path.getsize(src)),
+        "Accept-Ranges": "bytes",
+        "Content-Type": "video/mp4",
+    })
 
 
 @router.post("/workspace/{job_id}/extract")
