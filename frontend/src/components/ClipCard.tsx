@@ -299,16 +299,16 @@ export default function ClipCard({
           </div>
 
           {/* Platform badge */}
-          <span style={{ position: 'absolute', top: 8, left: 8, background: color, color: '#fff', borderRadius: 4, padding: '2px 8px', fontSize: 10, fontWeight: 700, letterSpacing: '0.04em' }}>
+          <span style={{ position: 'absolute', top: 8, left: 8, background: color, color: '#fff', borderRadius: 4, padding: '3px 9px', fontSize: 11, fontWeight: 700, letterSpacing: '0.04em' }}>
             {PLATFORM_LABEL[clip.platform]}
           </span>
 
           {/* Duration */}
-          {dur && <span style={{ position: 'absolute', bottom: 6, right: 6, background: 'rgba(0,0,0,0.75)', color: '#fff', borderRadius: 4, padding: '1px 6px', fontSize: 10, fontWeight: 600 }}>{dur}</span>}
+          {dur && <span style={{ position: 'absolute', bottom: 6, right: 6, background: 'rgba(0,0,0,0.75)', color: '#fff', borderRadius: 4, padding: '2px 7px', fontSize: 11, fontWeight: 600 }}>{dur}</span>}
 
           {/* Previously downloaded badge */}
           {previouslyDownloaded && (
-            <span style={{ position: 'absolute', bottom: 6, left: 6, background: 'rgba(22,163,74,0.85)', color: '#fff', borderRadius: 4, padding: '2px 7px', fontSize: 10, fontWeight: 700 }}>↓ Downloaded</span>
+            <span style={{ position: 'absolute', bottom: 6, left: 6, background: 'rgba(22,163,74,0.85)', color: '#fff', borderRadius: 4, padding: '3px 8px', fontSize: 11, fontWeight: 700 }}>↓ Downloaded</span>
           )}
 
           {/* Save button */}
@@ -331,10 +331,10 @@ export default function ClipCard({
 
           {/* Channel name */}
           {clip.channel_name && (
-            <div style={{ fontSize: 11, color: 'var(--muted)', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', letterSpacing: '0.01em' }}>
+            <div style={{ fontSize: 12, color: 'var(--muted)', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', letterSpacing: '0.01em' }}>
               {clip.channel_id
                 ? <button onClick={e => { e.stopPropagation(); setShowChannel(true) }}
-                    style={{ background: 'none', color: 'var(--muted)', padding: 0, fontSize: 11, fontWeight: 500, textAlign: 'left', border: 'none' }}
+                    style={{ background: 'none', color: 'var(--muted)', padding: 0, fontSize: 12, fontWeight: 500, textAlign: 'left', border: 'none' }}
                     onMouseEnter={e => (e.currentTarget.style.color = 'var(--accent)')}
                     onMouseLeave={e => (e.currentTarget.style.color = 'var(--muted)')}>
                     {clip.channel_name}
@@ -343,11 +343,11 @@ export default function ClipCard({
             </div>
           )}
 
-          <div style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.45, color: 'var(--text)', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+          <div style={{ fontSize: 14, fontWeight: 600, lineHeight: 1.45, color: 'var(--text)', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
             {clip.title}
           </div>
 
-          <div style={{ display: 'flex', gap: 10, color: 'var(--muted)', fontSize: 11, marginTop: 1 }}>
+          <div style={{ display: 'flex', gap: 10, color: 'var(--muted)', fontSize: 12, marginTop: 1 }}>
             {clip.views != null && <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}><span style={{ opacity: 0.6 }}>▶</span> {fmt(clip.views)}</span>}
             {clip.likes != null && <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}><span style={{ color: '#f43f5e' }}>♥</span> {fmt(clip.likes)}</span>}
             {clip.comments != null && <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}><span style={{ opacity: 0.6 }}>💬</span> {fmt(clip.comments)}</span>}
@@ -355,35 +355,35 @@ export default function ClipCard({
 
           {/* Actions */}
           <div style={{ marginTop: 'auto', paddingTop: 8, display: 'flex', gap: 5, alignItems: 'center' }}>
-            <button onClick={() => setPreviewing(true)} title="Preview" style={{ flex: '0 0 auto', width: 32, height: 32, border: '1px solid var(--border)', background: 'var(--surface2)', color: 'var(--muted)', fontSize: 11, padding: 0, borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>▶</button>
-            <button onClick={() => setShowInfo(true)} title="Info" style={{ flex: '0 0 auto', width: 32, height: 32, border: '1px solid var(--border)', background: 'var(--surface2)', color: 'var(--muted)', fontSize: 12, padding: 0, borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>ℹ</button>
-            <a href={clip.url} target="_blank" rel="noreferrer" title="Open" style={{ flex: '0 0 auto', width: 32, height: 32, border: '1px solid var(--border)', background: 'var(--surface2)', borderRadius: 7, color: 'var(--muted)', textDecoration: 'none', fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>↗</a>
+            <button onClick={() => setPreviewing(true)} title="Preview" style={{ flex: '0 0 auto', width: 34, height: 34, border: '1px solid var(--border)', background: 'var(--surface2)', color: 'var(--muted)', fontSize: 12, padding: 0, borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>▶</button>
+            <button onClick={() => setShowInfo(true)} title="Info" style={{ flex: '0 0 auto', width: 34, height: 34, border: '1px solid var(--border)', background: 'var(--surface2)', color: 'var(--muted)', fontSize: 13, padding: 0, borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>ℹ</button>
+            <a href={clip.url} target="_blank" rel="noreferrer" title="Open" style={{ flex: '0 0 auto', width: 34, height: 34, border: '1px solid var(--border)', background: 'var(--surface2)', borderRadius: 7, color: 'var(--muted)', textDecoration: 'none', fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>↗</a>
 
             {job?.status === 'error' ? (() => {
               const info = ERROR_COPY[job.error_type || 'unknown']
               return (
                 <div style={{ flex: 1, display: 'flex', gap: 4 }}>
                   <div title={`${info.detail}${job.error ? `\n\n${job.error}` : ''}`}
-                    style={{ flex: 1, textAlign: 'center', height: 32, lineHeight: '32px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 7, color: 'var(--error)', fontSize: 12, fontWeight: 600, cursor: 'help', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', padding: '0 8px' }}>
+                    style={{ flex: 1, textAlign: 'center', height: 34, lineHeight: '34px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 7, color: 'var(--error)', fontSize: 13, fontWeight: 600, cursor: 'help', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', padding: '0 8px' }}>
                     {info.label}
                   </div>
                   {info.action && onOpenInstagramSettings ? (
-                    <button onClick={onOpenInstagramSettings} style={{ height: 32, padding: '0 10px', background: 'var(--accent)', color: '#fff', fontWeight: 700, border: 'none', fontSize: 12, borderRadius: 7, whiteSpace: 'nowrap' }}>
+                    <button onClick={onOpenInstagramSettings} style={{ height: 34, padding: '0 10px', background: 'var(--accent)', color: '#fff', fontWeight: 700, border: 'none', fontSize: 13, borderRadius: 7, whiteSpace: 'nowrap' }}>
                       {info.action}
                     </button>
                   ) : (
-                    <button onClick={startEdit} style={{ height: 32, padding: '0 10px', background: 'var(--surface2)', color: 'var(--muted)', border: '1px solid var(--border)', fontSize: 12, borderRadius: 7 }}>
+                    <button onClick={startEdit} style={{ height: 34, padding: '0 10px', background: 'var(--surface2)', color: 'var(--muted)', border: '1px solid var(--border)', fontSize: 13, borderRadius: 7 }}>
                       Retry
                     </button>
                   )}
                 </div>
               )
             })() : job?.status === 'done' ? (
-              <button onClick={() => setShowEdit(true)} style={{ flex: 1, height: 32, background: 'var(--accent)', color: '#fff', fontWeight: 700, fontSize: 12, borderRadius: 7 }}>
+              <button onClick={() => setShowEdit(true)} style={{ flex: 1, height: 34, background: 'var(--accent)', color: '#fff', fontWeight: 700, fontSize: 13, borderRadius: 7 }}>
                 ✂ Open Editor
               </button>
             ) : (
-              <button onClick={startEdit} disabled={polling} style={{ flex: 1, height: 32, background: polling ? 'var(--surface2)' : 'var(--accent)', color: polling ? 'var(--muted)' : '#fff', border: polling ? '1px solid var(--border)' : 'none', fontWeight: 700, fontSize: 12, borderRadius: 7 }}>
+              <button onClick={startEdit} disabled={polling} style={{ flex: 1, height: 34, background: polling ? 'var(--surface2)' : 'var(--accent)', color: polling ? 'var(--muted)' : '#fff', border: polling ? '1px solid var(--border)' : 'none', fontWeight: 700, fontSize: 13, borderRadius: 7 }}>
                 {polling ? (job?.status === 'queued' ? 'Preparing…' : 'Downloading…') : '✂ Edit'}
               </button>
             )}
