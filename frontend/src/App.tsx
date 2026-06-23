@@ -747,7 +747,9 @@ export default function App() {
                 <div style={{ fontSize: 16, fontWeight: 700 }}>📈 Rising Channels</div>
                 {loadingRising && <div style={{ color: 'var(--muted)', fontSize: 13 }}>Analysing channels…</div>}
               </div>
-              <div style={{ color: 'var(--muted)', fontSize: 12, marginBottom: 16 }}>Momentum = recent views ÷ subscribers. Higher = punching above weight.</div>
+              <div style={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 10, padding: '12px 16px', marginBottom: 16, fontSize: 13, color: 'var(--text)', lineHeight: 1.5 }}>
+                Clippr is scoring YouTube channels by <strong>momentum</strong> — recent views divided by subscriber count — to surface channels punching above their weight, not just the biggest names. Pick a <strong>category</strong> in the left-hand pane to narrow the results to a specific niche.
+              </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 16 }}>
                 {risingChannels.map(ch => <ChannelCard key={ch.id} channel={ch} onSearch={t => { nav('search'); setTopic(t); search(undefined, t) }} />)}
               </div>
@@ -757,9 +759,12 @@ export default function App() {
           {/* ── Trending ── */}
           {showTrending && (
             <>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
                 <div style={{ fontSize: 16, fontWeight: 700 }}>🔥 Trending on YouTube</div>
                 {trendingClips.length === 0 && <div style={{ color: 'var(--muted)', fontSize: 13 }}>Loading…</div>}
+              </div>
+              <div style={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 10, padding: '12px 16px', marginBottom: 16, fontSize: 13, color: 'var(--text)', lineHeight: 1.5 }}>
+                Clippr is pulling YouTube's current <strong>mostPopular</strong> chart live. Pick a <strong>category</strong> in the left-hand pane (Gaming, Sports, Music, etc) to filter the chart down to a specific topic.
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 16 }}>
                 {trendingClips.map(clip => (
