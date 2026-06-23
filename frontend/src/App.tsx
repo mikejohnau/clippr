@@ -220,7 +220,11 @@ export default function App() {
       try {
         const res = await fetch(`/api/meta/?url=${encodeURIComponent(url)}`)
         const meta = await res.json()
-        return { id: `${platform}-${Date.now()}`, title: meta.title || `${platform} clip`, thumbnail: meta.thumbnail, url, platform } as Clip
+        return {
+          id: `${platform}-${Date.now()}`, title: meta.title || `${platform} clip`,
+          thumbnail: meta.thumbnail, url, platform,
+          views: meta.views, likes: meta.likes, comments: meta.comments, duration: meta.duration,
+        } as Clip
       } catch {
         return { id: `${platform}-${Date.now()}`, title: `${platform} clip`, url, platform } as Clip
       }
