@@ -67,10 +67,13 @@ info "Code updated"
 
 section "Updating Python dependencies"
 run_spin "Upgrading pip" "$INSTALL_DIR/venv/bin/pip" install --upgrade pip
-echo -e "  ${CYAN}Upgrading yt-dlp...${NC}"
-"$INSTALL_DIR/venv/bin/pip" install --progress-bar on --upgrade yt-dlp
 echo -e "  ${CYAN}Updating Python dependencies...${NC}"
 "$INSTALL_DIR/venv/bin/pip" install --progress-bar on -r "$INSTALL_DIR/backend/requirements.txt"
+echo -e "  ${CYAN}Upgrading yt-dlp...${NC}"
+# Must run after requirements.txt — that file pins yt-dlp to a fixed version,
+# so upgrading first and installing requirements after would silently
+# downgrade yt-dlp right back down again.
+"$INSTALL_DIR/venv/bin/pip" install --progress-bar on --upgrade yt-dlp
 info "Python deps updated"
 
 section "Rebuilding frontend"

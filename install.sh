@@ -125,6 +125,9 @@ info "Python venv ready"
 # ── 5. yt-dlp (keep up-to-date binary) ───────────────────────
 section "5/8  yt-dlp"
 echo -e "  ${CYAN}Upgrading yt-dlp...${NC}"
+# Must run after requirements.txt (step 4) — that file pins yt-dlp to a fixed
+# version, so this order matters: upgrading before installing requirements
+# would silently get downgraded right back down again.
 "$INSTALL_DIR/venv/bin/pip" install --progress-bar on --upgrade yt-dlp
 info "yt-dlp $("$INSTALL_DIR/venv/bin/yt-dlp" --version)"
 
