@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { Clip, Project, ProjectClip } from './types'
 import ClipCard from './components/ClipCard'
 import ChannelCard from './components/ChannelCard'
+import SettingsModal from './components/SettingsModal'
 
 const MAX_HISTORY = 10
 
@@ -40,6 +41,7 @@ export default function App() {
   const [risingCategory, setRisingCategory] = useState('0')
   const [loadingRising, setLoadingRising] = useState(false)
   const [showSaved, setShowSaved] = useState(false)
+  const [showSettings, setShowSettings] = useState(false)
   const [googleTrends, setGoogleTrends] = useState<any[]>([])
   const [selectedTrend, setSelectedTrend] = useState<any | null>(null)
   const [trendsRegion, setTrendsRegion] = useState('US')
@@ -337,10 +339,16 @@ export default function App() {
             </div>
             <div style={{ color: 'var(--sidebar-text)', fontSize: 10, marginTop: 3, letterSpacing: '0.04em' }}>Viral clip discovery</div>
           </div>
-          <button onClick={() => setDark(d => !d)} title={dark ? 'Light mode' : 'Dark mode'}
-            style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--sidebar-text)', padding: '5px 7px', fontSize: 13, borderRadius: 7, lineHeight: 1 }}>
-            {dark ? '☀️' : '🌙'}
-          </button>
+          <div style={{ display: 'flex', gap: 6 }}>
+            <button onClick={() => setShowSettings(true)} title="Settings"
+              style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--sidebar-text)', padding: '5px 7px', fontSize: 13, borderRadius: 7, lineHeight: 1 }}>
+              ⚙
+            </button>
+            <button onClick={() => setDark(d => !d)} title={dark ? 'Light mode' : 'Dark mode'}
+              style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--sidebar-text)', padding: '5px 7px', fontSize: 13, borderRadius: 7, lineHeight: 1 }}>
+              {dark ? '☀️' : '🌙'}
+            </button>
+          </div>
         </div>
 
         <div style={{ flex: 1, padding: '4px 10px 16px', display: 'flex', flexDirection: 'column', gap: 1 }}>
@@ -829,6 +837,8 @@ export default function App() {
           )}
         </div>
       </main>
+
+      {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
     </div>
   )
 }

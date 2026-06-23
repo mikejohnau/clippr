@@ -27,6 +27,8 @@ def _download_tiktok(url: str, out_path: str):
 router = APIRouter()
 CLIPS_DIR = str(pathlib.Path(__file__).parent.parent.parent.parent / "clips")
 
+from app.routers.settings import INSTAGRAM_COOKIES_PATH
+
 class DownloadRequest(BaseModel):
     url: str
     title: str = ""
@@ -59,6 +61,9 @@ def run_download(job_id: str, url: str):
     }
 
     is_tiktok = "tiktok.com" in url
+    is_instagram = "instagram.com" in url
+    if is_instagram and os.path.exists(INSTAGRAM_COOKIES_PATH):
+        ydl_opts["cookiefile"] = INSTAGRAM_COOKIES_PATH
 
     try:
         if is_tiktok:
@@ -78,7 +83,10 @@ def run_download(job_id: str, url: str):
             job.error = "Download completed but file not found"
     except Exception as e:
         job.status = "error"
-        job.error = str(e)
+        err = str(e)
+        if is_instagram and ("login required" in err.lower() or "rate-limit" in err.lower()):
+            err += " — upload an Instagram cookies.txt in Settings to fix this."
+        job.error = err
 
 @router.post("/", response_model=DownloadStatus)
 async def start_download(req: DownloadRequest, background_tasks: BackgroundTasks):

@@ -141,5 +141,6 @@ clippr/
 
 - **ffmpeg cut accuracy**: extraction uses `-c copy` (no re-encode) which is fast but snaps to the nearest keyframe — typically within ~1 second of the marked point. Frame-accurate cuts would require re-encoding.
 - **TikTok downloads**: use `yt-dlp --impersonate chrome` via subprocess. Success depends on TikTok's current bot detection.
+- **Instagram downloads**: Instagram frequently blocks anonymous yt-dlp requests with a login wall. Upload a cookies.txt file (exported from a logged-in browser session, e.g. with the "Get cookies.txt LOCALLY" extension) via the ⚙ Settings panel to fix this — Clippr never sees your password, only the exported session cookies.
 - **Google Trends**: the RSS feed only provides daily data; the hours/category parameters on the RSS endpoint have no effect.
 - **Self-hosted**: no accounts, no cloud dependencies beyond the YouTube API key. Everything runs locally.
