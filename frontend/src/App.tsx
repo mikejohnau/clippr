@@ -356,6 +356,11 @@ export default function App() {
     setSelected(new Set())
   }
 
+  function removeSelected() {
+    setClips(prev => prev.filter(c => !selected.has(`${c.platform}-${c.id}`)))
+    setSelected(new Set())
+  }
+
   // ── render ────────────────────────────────────────────────────────────────
 
   const isSearch = !showTrending && !showRising && !showSaved && !selectedTrend
@@ -819,20 +824,24 @@ export default function App() {
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                     {selected.size > 0 && (
                       <>
-                        <span style={{ fontSize: 12, color: 'var(--muted)' }}>{selected.size} selected</span>
+                        <span style={{ fontSize: 13, color: 'var(--muted)' }}>{selected.size} selected</span>
                         <button onClick={batchDownload} disabled={batchDownloading} style={{
-                          background: 'var(--accent)', color: '#fff', fontWeight: 600, fontSize: 12, padding: '6px 16px',
+                          background: 'var(--accent)', color: '#fff', fontWeight: 600, fontSize: 13, padding: '6px 16px',
                           opacity: batchDownloading ? 0.7 : 1,
                         }}>
                           {batchDownloading ? 'Downloading…' : `↓ Download ${selected.size}`}
                         </button>
+                        <button onClick={removeSelected} disabled={batchDownloading}
+                          style={{ background: 'none', color: 'var(--error)', border: '1px solid var(--error)', fontWeight: 600, fontSize: 13, padding: '6px 16px', opacity: batchDownloading ? 0.7 : 1 }}>
+                          Remove {selected.size}
+                        </button>
                         <button onClick={() => setSelected(new Set())}
-                          style={{ background: 'none', color: 'var(--muted)', border: '1px solid var(--border)', fontSize: 12, padding: '6px 10px' }}>✕</button>
+                          style={{ background: 'none', color: 'var(--muted)', border: '1px solid var(--border)', fontSize: 13, padding: '6px 10px' }}>✕</button>
                       </>
                     )}
                     {selected.size === 0 && clips.length > 0 && (
                       <button onClick={() => setSelected(new Set(clips.map(c => `${c.platform}-${c.id}`)))}
-                        style={{ background: 'none', color: 'var(--muted)', border: '1px solid var(--border)', fontSize: 12, padding: '6px 12px' }}>
+                        style={{ background: 'none', color: 'var(--muted)', border: '1px solid var(--border)', fontSize: 13, padding: '6px 12px' }}>
                         Select all
                       </button>
                     )}
