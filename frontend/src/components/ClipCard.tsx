@@ -11,6 +11,16 @@ const PLATFORM_LABEL: Record<string, string> = {
   youtube: 'YouTube', tiktok: 'TikTok', reddit: 'Reddit', instagram: 'Instagram',
 }
 
+// Instagram/TikTok CDN thumbnails set Cross-Origin-Resource-Policy: same-origin,
+// which browsers block from loading directly in an <img> tag cross-origin.
+// Proxy those through our own backend so the browser only ever sees same-origin
+// bytes; YouTube's CDN doesn't set this so it's safe to load directly.
+function thumbSrc(clip: Clip): string | undefined {
+  if (!clip.thumbnail) return undefined
+  if (clip.platform === 'youtube') return clip.thumbnail
+  return `/api/imgproxy?url=${encodeURIComponent(clip.thumbnail)}`
+}
+
 function fmt(n?: number) {
   if (n == null) return '—'
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
@@ -52,7 +62,7 @@ function PreviewModal({ clip, onClose }: { clip: Clip; onClose: () => void }) {
           </div>
         ) : (
           <div style={{ background: 'var(--surface)', borderRadius: 10, padding: '40px 32px', textAlign: 'center', color: 'var(--muted)' }}>
-            {clip.thumbnail && <img src={clip.thumbnail} alt={clip.title} style={{ width: '100%', maxHeight: 300, objectFit: 'cover', borderRadius: 8, marginBottom: 20 }} />}
+            {clip.thumbnail && <img src={thumbSrc(clip)} alt={clip.title} style={{ width: '100%', maxHeight: 300, objectFit: 'cover', borderRadius: 8, marginBottom: 20 }} />}
             <div style={{ fontSize: 14, marginBottom: 16 }}>Inline preview not available for {PLATFORM_LABEL[clip.platform]}.</div>
             <a href={clip.url} target="_blank" rel="noreferrer" style={{ background: PLATFORM_COLOR[clip.platform], color: '#fff', padding: '10px 24px', borderRadius: 6, textDecoration: 'none', fontWeight: 600, fontSize: 13 }}>
               Open on {PLATFORM_LABEL[clip.platform]} ↗
@@ -94,7 +104,7 @@ function InfoModal({ clip, onClose, onViewChannel }: { clip: Clip; onClose: () =
       }}>
         {/* Header */}
         <div style={{ display: 'flex', gap: 16, padding: '20px 24px', borderBottom: '1px solid var(--border)', alignItems: 'flex-start' }}>
-          {clip.thumbnail && <img src={clip.thumbnail} alt="" style={{ width: 120, height: 78, objectFit: 'cover', borderRadius: 6, flexShrink: 0 }} />}
+          {clip.thumbnail && <img src={thumbSrc(clip)} alt="" style={{ width: 120, height: 78, objectFit: 'cover', borderRadius: 6, flexShrink: 0 }} />}
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', lineHeight: 1.4, marginBottom: 6 }}>{clip.title}</div>
             {clip.channel_name && (
@@ -278,7 +288,7 @@ export default function ClipCard({
 
         {/* Thumbnail */}
         <div onClick={() => setPreviewing(true)} style={{ position: 'relative', paddingTop: '56.25%', background: 'var(--surface2)', cursor: 'pointer' }}>
-          {clip.thumbnail && <img src={clip.thumbnail} alt={clip.title} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />}
+          {clip.thumbnail && <img src={thumbSrc(clip)} alt={clip.title} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />}
           {!clip.thumbnail && <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#cbd5e1', fontSize: 28 }}>▶</div>}
 
           {/* Play overlay */}
