@@ -21,12 +21,18 @@ function TikTokIcon({ size = 16 }: { size?: number }) {
   )
 }
 
-function NavIcon({ kind, size = 15 }: { kind: 'search' | 'trending' | 'rising' | 'projects'; size?: number }) {
+type NavIconKind = 'search' | 'trending' | 'rising' | 'projects' | 'help' | 'settings' | 'sun' | 'moon'
+
+function NavIcon({ kind, size = 15 }: { kind: NavIconKind; size?: number }) {
   const common = { width: size, height: size, viewBox: '0 0 16 16', fill: 'none', stroke: 'currentColor', strokeWidth: 1.6, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const }
   if (kind === 'search') return <svg {...common}><circle cx="7" cy="7" r="5" /><line x1="11" y1="11" x2="14.5" y2="14.5" /></svg>
   if (kind === 'trending') return <svg {...common}><path d="M8 1.5c1 2 .5 3-.5 4 1.5-.3 3 .5 3.5 2 .5-1 1.5-1 1.5 1.2 0 2.7-2.4 5.3-5.5 5.3S1.5 11.4 1.5 8.7c0-2 1.2-3.4 2.3-4.2-.1 1 .2 1.7.8 2C4.2 5 5.5 3 8 1.5z" /></svg>
   if (kind === 'rising') return <svg {...common}><polyline points="1.5,12 6,7 9,10 14.5,3.5" /><polyline points="10.5,3.5 14.5,3.5 14.5,7.5" /></svg>
-  return <svg {...common}><path d="M1.5 4.5a1 1 0 0 1 1-1h3l1.2 1.6h6.3a1 1 0 0 1 1 1v6.4a1 1 0 0 1-1 1h-10.5a1 1 0 0 1-1-1z" /></svg>
+  if (kind === 'projects') return <svg {...common}><path d="M1.5 4.5a1 1 0 0 1 1-1h3l1.2 1.6h6.3a1 1 0 0 1 1 1v6.4a1 1 0 0 1-1 1h-10.5a1 1 0 0 1-1-1z" /></svg>
+  if (kind === 'help') return <svg {...common}><circle cx="8" cy="8" r="6.3" /><path d="M6.1 6.2c.2-1 1-1.7 2-1.7 1.1 0 2 .8 2 1.8 0 .8-.4 1.2-1.1 1.7-.6.4-.9.7-.9 1.4" /><circle cx="8" cy="11.4" r="0.15" fill="currentColor" /></svg>
+  if (kind === 'settings') return <svg {...common}><line x1="2" y1="4.5" x2="14" y2="4.5" /><circle cx="6" cy="4.5" r="1.4" fill="currentColor" stroke="none" /><line x1="2" y1="8" x2="14" y2="8" /><circle cx="10.5" cy="8" r="1.4" fill="currentColor" stroke="none" /><line x1="2" y1="11.5" x2="14" y2="11.5" /><circle cx="7.5" cy="11.5" r="1.4" fill="currentColor" stroke="none" /></svg>
+  if (kind === 'sun') return <svg {...common}><circle cx="8" cy="8" r="3" /><path d="M8 1.8v1.6M8 12.6v1.6M14.2 8h-1.6M3.4 8H1.8M12.2 3.8l-1.1 1.1M4.9 11.1l-1.1 1.1M12.2 12.2l-1.1-1.1M4.9 4.9 3.8 3.8" /></svg>
+  return <svg {...common} fill="currentColor" stroke="none"><path d="M13.8 9.8A5.8 5.8 0 0 1 6.2 2.2a5.8 5.8 0 1 0 7.6 7.6z" /></svg>
 }
 
 function InstagramIcon({ size = 16 }: { size?: number }) {
@@ -378,16 +384,16 @@ export default function App() {
           </div>
           <div style={{ display: 'flex', gap: 6 }}>
             <button onClick={() => setShowHelp(true)} title="Help"
-              style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--sidebar-text)', padding: '5px 7px', fontSize: 13, borderRadius: 7, lineHeight: 1 }}>
-              ❓
+              style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--sidebar-text)', padding: 7, borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <NavIcon kind="help" size={15} />
             </button>
             <button onClick={() => setShowSettings(true)} title="Settings"
-              style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--sidebar-text)', padding: '5px 7px', fontSize: 13, borderRadius: 7, lineHeight: 1 }}>
-              ⚙
+              style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--sidebar-text)', padding: 7, borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <NavIcon kind="settings" size={15} />
             </button>
             <button onClick={() => setDark(d => !d)} title={dark ? 'Light mode' : 'Dark mode'}
-              style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--sidebar-text)', padding: '5px 7px', fontSize: 13, borderRadius: 7, lineHeight: 1 }}>
-              {dark ? '☀️' : '🌙'}
+              style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--sidebar-text)', padding: 7, borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <NavIcon kind={dark ? 'sun' : 'moon'} size={15} />
             </button>
           </div>
         </div>
