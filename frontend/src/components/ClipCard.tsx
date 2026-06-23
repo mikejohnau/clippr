@@ -298,17 +298,17 @@ export default function ClipCard({
             <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'rgba(255,255,255,0.9)', color: '#0c0e14', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, paddingLeft: 3, opacity: 0.85 }}>▶</div>
           </div>
 
-          {/* Platform badge */}
-          <span style={{ position: 'absolute', top: 8, left: 8, background: color, color: '#fff', borderRadius: 4, padding: '3px 9px', fontSize: 11, fontWeight: 700, letterSpacing: '0.04em' }}>
+          {/* Platform badge — bottom-left, same row as duration in the opposite corner */}
+          <span style={{ position: 'absolute', bottom: 6, left: 6, background: color, color: '#fff', borderRadius: 4, padding: '3px 9px', fontSize: 11, fontWeight: 700, letterSpacing: '0.04em' }}>
             {PLATFORM_LABEL[clip.platform]}
           </span>
 
           {/* Duration */}
           {dur && <span style={{ position: 'absolute', bottom: 6, right: 6, background: 'rgba(0,0,0,0.75)', color: '#fff', borderRadius: 4, padding: '2px 7px', fontSize: 11, fontWeight: 600 }}>{dur}</span>}
 
-          {/* Previously downloaded badge */}
+          {/* Previously downloaded badge — offset below where the search-results selection checkbox sits (top:10/left:10, 20x20) so they never overlap */}
           {previouslyDownloaded && (
-            <span style={{ position: 'absolute', bottom: 6, left: 6, background: 'rgba(22,163,74,0.85)', color: '#fff', borderRadius: 4, padding: '3px 8px', fontSize: 11, fontWeight: 700 }}>↓ Downloaded</span>
+            <span style={{ position: 'absolute', top: 38, left: 8, background: 'rgba(22,163,74,0.85)', color: '#fff', borderRadius: 4, padding: '3px 8px', fontSize: 11, fontWeight: 700 }}>↓ Downloaded</span>
           )}
 
           {/* Save button */}
