@@ -15,8 +15,12 @@ function detectPlatform(url: string): 'tiktok' | 'instagram' | null {
 
 function TikTokIcon({ size = 16 }: { size?: number }) {
   return (
-    <svg width={size} height={size * 16 / 14} viewBox="0 0 14 16" fill="none">
-      <path d="M13 3.5a3.5 3.5 0 01-3.5-3.5H7v11a2 2 0 11-2-2v-2.1A4 4 0 1011 12.5V6.1A7 7 0 0013 6.5V3.5z" fill="#010101" />
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none">
+      <rect x="1" y="1" width="14" height="14" rx="4" fill="#010101" />
+      {/* cyan/red accent peeking out from behind the note, matching the real brand mark */}
+      <path d="M10.4 5.1a2.7 2.7 0 0 1-2.5-2.5H6.3v7.2a1.4 1.4 0 1 1-1.3-1.4v-1.6a3 3 0 1 0 2.9 3V6.4a4.9 4.9 0 0 0 2.7.9V5.6z" fill="#69C9D0" transform="translate(0.35,0.35)" />
+      <path d="M10.4 5.1a2.7 2.7 0 0 1-2.5-2.5H6.3v7.2a1.4 1.4 0 1 1-1.3-1.4v-1.6a3 3 0 1 0 2.9 3V6.4a4.9 4.9 0 0 0 2.7.9V5.6z" fill="#EE1D52" transform="translate(-0.35,-0.35)" />
+      <path d="M10.4 5.1a2.7 2.7 0 0 1-2.5-2.5H6.3v7.2a1.4 1.4 0 1 1-1.3-1.4v-1.6a3 3 0 1 0 2.9 3V6.4a4.9 4.9 0 0 0 2.7.9V5.6z" fill="#fff" />
     </svg>
   )
 }
