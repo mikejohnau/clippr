@@ -39,6 +39,67 @@ def _duration(path: str) -> float:
         return 0.0
 
 
+_FONT_CANDIDATES = [
+    "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+    "/System/Library/Fonts/Supplemental/Arial Bold.ttf",
+    "/System/Library/Fonts/Supplemental/Arial.ttf",
+]
+
+
+def _find_font() -> str | None:
+    for path in _FONT_CANDIDATES:
+        if os.path.exists(path):
+            return path
+    return None
+
+
+def _escape_drawtext(text: str) -> str:
+    return (
+        text.replace("\\", "\\\\")
+        .replace(":", "\\:")
+        .replace("'", "’")  # avoid quote-escaping headaches; use a typographic apostrophe
+        .replace("%", "\\%")
+    )
+
+
+TEMPLATES = {
+    "none": {"name": "No overlay"},
+    "bold-bottom": {"name": "Bold Caption (Bottom)"},
+    "lower-third": {"name": "Lower Third"},
+    "top-banner": {"name": "Top Banner"},
+}
+
+
+def _build_overlay_filter(template: str, text: str) -> str | None:
+    text = text.strip()
+    if template == "none" or not text:
+        return None
+
+    font = _find_font()
+    font_arg = f"fontfile='{font}':" if font else ""
+    esc = _escape_drawtext(text)
+
+    if template == "bold-bottom":
+        return (
+            f"drawtext={font_arg}text='{esc}':fontsize=54:fontcolor=white:"
+            f"borderw=4:bordercolor=black:x=(w-text_w)/2:y=h-text_h-70"
+        )
+    if template == "lower-third":
+        return (
+            "drawbox=x=0:y=ih-ih/6:w=iw:h=ih/6:color=black@0.55:t=fill,"
+            f"drawtext={font_arg}text='{esc}':fontsize=38:fontcolor=white:"
+            "x=40:y=ih-ih/6+(ih/6-text_h)/2"
+        )
+    if template == "top-banner":
+        return (
+            "drawbox=x=0:y=0:w=iw:h=90:color=black@0.65:t=fill,"
+            f"drawtext={font_arg}text='{esc}':fontsize=42:fontcolor=white:"
+            "x=(w-text_w)/2:y=(90-text_h)/2"
+        )
+    return None
+
+
 # ── models ────────────────────────────────────────────────────────────────────
 
 class Segment(BaseModel):
@@ -46,6 +107,8 @@ class Segment(BaseModel):
     end: float            # seconds
     mute: bool = False
     label: str = ""       # shown as filename hint
+    title: str = ""        # overlay text, empty = no overlay
+    template: str = "none" # one of TEMPLATES keys
 
 
 class ExtractRequest(BaseModel):
@@ -53,6 +116,11 @@ class ExtractRequest(BaseModel):
 
 
 # ── endpoints ─────────────────────────────────────────────────────────────────
+
+@router.get("/templates")
+def list_templates():
+    return [{"id": k, "name": v["name"]} for k, v in TEMPLATES.items()]
+
 
 @router.get("/workspace")
 def list_workspace():
@@ -110,13 +178,14 @@ def extract_segments(job_id: str, req: ExtractRequest):
         safe_label = "".join(c if c.isalnum() or c in "-_ " else "_" for c in label).strip()
         out_file = os.path.join(out_dir, f"{output_id}_{safe_label}.mp4")
 
-        cmd = [
-            "ffmpeg", "-y",
-            "-ss", str(seg.start),
-            "-to", str(seg.end),
-            "-i", src,
-            "-c:v", "copy",
-        ]
+        overlay_filter = _build_overlay_filter(seg.template, seg.title)
+
+        cmd = ["ffmpeg", "-y", "-ss", str(seg.start), "-to", str(seg.end), "-i", src]
+        if overlay_filter:
+            # burning in an overlay requires re-encoding the video stream
+            cmd += ["-vf", overlay_filter, "-c:v", "libx264", "-preset", "veryfast", "-crf", "20"]
+        else:
+            cmd += ["-c:v", "copy"]
         if seg.mute:
             cmd.append("-an")
         else:

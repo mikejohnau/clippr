@@ -84,7 +84,7 @@ run_spin "Updating package lists" apt-get update -q
 echo -e "  ${CYAN}Installing system dependencies (this may take a minute)...${NC}"
 DEBIAN_FRONTEND=noninteractive apt-get install -y \
     -o Dpkg::Progress-Fancy=1 \
-    curl wget git ffmpeg \
+    curl wget git ffmpeg fonts-dejavu-core \
     python3 python3-pip python3-venv \
     build-essential ca-certificates gnupg \
     nginx

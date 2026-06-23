@@ -23,7 +23,8 @@ A self-hostable viral clip discovery and editing tool. Find trending videos acro
 - **Mark In / Mark Out** — set start and end points from the current playback position
 - **Multiple extractions** — queue several segments from the same source video and extract them all at once
 - **Mute audio** — per-segment mute toggle
-- **Instant extraction** — uses `ffmpeg -c copy` (no re-encode) so extraction is near-instant
+- **Title overlays** — burn in a caption using a fixed set of templates (Bold Caption, Lower Third, Top Banner) per segment
+- **Instant extraction** — uses `ffmpeg -c copy` (no re-encode) when no overlay is set, so plain trims are near-instant; segments with a title overlay re-encode via `libx264`
 - **Clean up** — delete the source file from within the editor when you're done
 
 ### UI

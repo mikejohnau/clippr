@@ -5,7 +5,16 @@ interface Segment {
   end: number
   mute: boolean
   label: string
+  title: string
+  template: string
 }
+
+const TEMPLATES = [
+  { id: 'none', name: 'No overlay' },
+  { id: 'bold-bottom', name: 'Bold Caption (Bottom)' },
+  { id: 'lower-third', name: 'Lower Third' },
+  { id: 'top-banner', name: 'Top Banner' },
+]
 
 interface OutputClip {
   output_id: string | null
@@ -51,6 +60,8 @@ export default function EditModal({ jobId, title, onClose }: {
   const [end, setEnd] = useState(0)
   const [mute, setMute] = useState(false)
   const [label, setLabel] = useState('')
+  const [overlayTitle, setOverlayTitle] = useState('')
+  const [template, setTemplate] = useState('none')
   const [startInput, setStartInput] = useState('0:00.0')
   const [endInput, setEndInput] = useState('0:00.0')
 
@@ -105,8 +116,15 @@ export default function EditModal({ jobId, title, onClose }: {
 
   function addSegment() {
     if (end <= start) return
-    setSegments(prev => [...prev, { start, end, mute, label: label || `clip ${prev.length + 1}` }])
+    setSegments(prev => [...prev, {
+      start, end, mute,
+      label: label || `clip ${prev.length + 1}`,
+      title: overlayTitle,
+      template,
+    }])
     setLabel('')
+    setOverlayTitle('')
+    setTemplate('none')
   }
 
   function removeSegment(i: number) {
@@ -189,6 +207,23 @@ export default function EditModal({ jobId, title, onClose }: {
                 }}
                 style={{ width: '100%', display: 'block', maxHeight: 340 }}
               />
+
+              {/* Rough overlay preview — approximates the burned-in ffmpeg template */}
+              {overlayTitle && template === 'bold-bottom' && (
+                <div style={{ position: 'absolute', left: 0, right: 0, bottom: 24, textAlign: 'center', pointerEvents: 'none' }}>
+                  <span style={{ color: '#fff', fontWeight: 800, fontSize: 22, textShadow: '0 0 6px #000, 0 0 6px #000, 0 0 6px #000' }}>{overlayTitle}</span>
+                </div>
+              )}
+              {overlayTitle && template === 'lower-third' && (
+                <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: '17%', background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', paddingLeft: 16, pointerEvents: 'none' }}>
+                  <span style={{ color: '#fff', fontWeight: 700, fontSize: 16 }}>{overlayTitle}</span>
+                </div>
+              )}
+              {overlayTitle && template === 'top-banner' && (
+                <div style={{ position: 'absolute', left: 0, right: 0, top: 0, height: 32, background: 'rgba(0,0,0,0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
+                  <span style={{ color: '#fff', fontWeight: 700, fontSize: 15 }}>{overlayTitle}</span>
+                </div>
+              )}
             </div>
 
             {/* Time display */}
@@ -254,6 +289,26 @@ export default function EditModal({ jobId, title, onClose }: {
               </div>
             </div>
 
+            {/* Overlay template */}
+            <div style={{ background: 'var(--surface2)', borderRadius: 10, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Title overlay (optional)</div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <select value={template} onChange={e => setTemplate(e.target.value)}
+                  style={{ height: 34, fontSize: 12, borderRadius: 7, flexShrink: 0, width: 160 }}>
+                  {TEMPLATES.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                </select>
+                <input value={overlayTitle} onChange={e => setOverlayTitle(e.target.value)}
+                  disabled={template === 'none'}
+                  placeholder="Overlay text…"
+                  style={{ flex: 1, height: 34, fontSize: 13 }} />
+              </div>
+              {template !== 'none' && (
+                <div style={{ fontSize: 10, color: 'var(--muted)' }}>
+                  Burned in during extraction — this clip will re-encode (slower than copy-only trims).
+                </div>
+              )}
+            </div>
+
             {/* Label + add */}
             <div style={{ display: 'flex', gap: 8 }}>
               <input value={label} onChange={e => setLabel(e.target.value)} placeholder="Clip label (optional)…"
@@ -296,6 +351,11 @@ export default function EditModal({ jobId, title, onClose }: {
                       <span style={{ marginLeft: 6 }}>({fmt(seg.end - seg.start)})</span>
                     </div>
                     {seg.mute && <div style={{ color: '#f59e0b', fontSize: 10, marginTop: 2 }}>🔇 muted</div>}
+                    {seg.template !== 'none' && seg.title && (
+                      <div style={{ color: 'var(--accent)', fontSize: 10, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        🏷 {TEMPLATES.find(t => t.id === seg.template)?.name}: "{seg.title}"
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
