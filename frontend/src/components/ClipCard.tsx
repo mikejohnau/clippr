@@ -183,8 +183,32 @@ function InfoModal({ clip, onClose, onViewChannel }: { clip: Clip; onClose: () =
 
 // ── Card ─────────────────────────────────────────────────────────────────────
 
+const ERROR_COPY: Record<string, { label: string; detail: string; action?: string }> = {
+  instagram_login_required: {
+    label: 'Login required',
+    detail: 'Instagram is blocking anonymous downloads. Upload your session cookies in Settings to fix this.',
+    action: 'Open Settings',
+  },
+  tiktok_blocked: {
+    label: 'Blocked',
+    detail: "TikTok's bot detection rejected this request. This usually clears up on its own — try again shortly.",
+  },
+  video_unavailable: {
+    label: 'Unavailable',
+    detail: 'The source removed or restricted this video — it can no longer be downloaded.',
+  },
+  rate_limited: {
+    label: 'Rate limited',
+    detail: 'Too many requests in a short time. Wait a minute and retry.',
+  },
+  unknown: {
+    label: 'Failed',
+    detail: 'The download failed for an unrecognized reason — see the full error below.',
+  },
+}
+
 export default function ClipCard({
-  clip, saved, onToggleSave, projects, onSaveToProject, previouslyDownloaded,
+  clip, saved, onToggleSave, projects, onSaveToProject, previouslyDownloaded, onOpenInstagramSettings,
 }: {
   clip: Clip
   saved?: boolean
@@ -192,6 +216,7 @@ export default function ClipCard({
   projects?: Project[]
   onSaveToProject?: (clip: Clip, projectId: string) => void
   previouslyDownloaded?: boolean
+  onOpenInstagramSettings?: () => void
 }) {
   const [job, setJob] = useState<DownloadJob | null>(null)
   const [polling, setPolling] = useState(false)
@@ -324,16 +349,26 @@ export default function ClipCard({
             <button onClick={() => setShowInfo(true)} title="Info" style={{ flex: '0 0 auto', width: 32, height: 32, border: '1px solid var(--border)', background: 'var(--surface2)', color: 'var(--muted)', fontSize: 12, padding: 0, borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>ℹ</button>
             <a href={clip.url} target="_blank" rel="noreferrer" title="Open" style={{ flex: '0 0 auto', width: 32, height: 32, border: '1px solid var(--border)', background: 'var(--surface2)', borderRadius: 7, color: 'var(--muted)', textDecoration: 'none', fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>↗</a>
 
-            {job?.status === 'error' ? (
-              <div style={{ flex: 1, display: 'flex', gap: 4 }}>
-                <div title={job.error || ''} style={{ flex: 1, textAlign: 'center', height: 32, lineHeight: '32px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 7, color: 'var(--error)', fontSize: 12, fontWeight: 600, cursor: 'help', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', padding: '0 8px' }}>
-                  {job.error?.includes('not available') ? 'Unavailable' : job.error?.includes('rehydration') ? 'Blocked' : 'Failed'}
+            {job?.status === 'error' ? (() => {
+              const info = ERROR_COPY[job.error_type || 'unknown']
+              return (
+                <div style={{ flex: 1, display: 'flex', gap: 4 }}>
+                  <div title={`${info.detail}${job.error ? `\n\n${job.error}` : ''}`}
+                    style={{ flex: 1, textAlign: 'center', height: 32, lineHeight: '32px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 7, color: 'var(--error)', fontSize: 12, fontWeight: 600, cursor: 'help', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', padding: '0 8px' }}>
+                    {info.label}
+                  </div>
+                  {info.action && onOpenInstagramSettings ? (
+                    <button onClick={onOpenInstagramSettings} style={{ height: 32, padding: '0 10px', background: '#7c3aed', color: '#fff', fontWeight: 700, border: 'none', fontSize: 12, borderRadius: 7, whiteSpace: 'nowrap' }}>
+                      {info.action}
+                    </button>
+                  ) : (
+                    <button onClick={startEdit} style={{ height: 32, padding: '0 10px', background: 'var(--surface2)', color: 'var(--muted)', border: '1px solid var(--border)', fontSize: 12, borderRadius: 7 }}>
+                      Retry
+                    </button>
+                  )}
                 </div>
-                <button onClick={startEdit} style={{ height: 32, padding: '0 10px', background: 'var(--surface2)', color: 'var(--muted)', border: '1px solid var(--border)', fontSize: 12, borderRadius: 7 }}>
-                  Retry
-                </button>
-              </div>
-            ) : job?.status === 'done' ? (
+              )
+            })() : job?.status === 'done' ? (
               <button onClick={() => setShowEdit(true)} style={{ flex: 1, height: 32, background: '#7c3aed', color: '#fff', fontWeight: 700, fontSize: 12, borderRadius: 7 }}>
                 ✂ Open Editor
               </button>

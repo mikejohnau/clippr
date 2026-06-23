@@ -38,8 +38,45 @@ class DownloadStatus(BaseModel):
     status: str  # queued, downloading, done, error
     filename: str | None = None
     error: str | None = None
+    error_type: str | None = None  # see ERROR_TYPES below; lets the UI show a precise fix, not a guess
 
 jobs: dict[str, DownloadStatus] = {}
+
+# Known, stable substrings from yt-dlp's own error messages, mapped to a
+# specific cause + fix. Anything not matched here falls back to "unknown"
+# so the UI never has to guess what went wrong.
+ERROR_TYPES = {
+    "instagram_login_required": [
+        "login required",
+        "rate-limit reached",
+    ],
+    "tiktok_blocked": [
+        "unable to extract webpage",
+        "this content is currently unavailable",
+    ],
+    "video_unavailable": [
+        "video unavailable",
+        "private video",
+        "this video is not available",
+    ],
+    "rate_limited": [
+        "http error 429",
+        "too many requests",
+    ],
+}
+
+
+def _classify_error(err: str, is_instagram: bool, is_tiktok: bool) -> str:
+    low = err.lower()
+    for error_type, needles in ERROR_TYPES.items():
+        if any(n in low for n in needles):
+            # "login required"/"rate-limit reached" only mean an Instagram cookie
+            # problem when the URL is actually Instagram — TikTok/YouTube can also
+            # rate-limit, which should fall into the generic rate_limited bucket.
+            if error_type == "instagram_login_required" and not is_instagram:
+                continue
+            return error_type
+    return "unknown"
 
 def run_download(job_id: str, url: str):
     job = jobs[job_id]
@@ -83,10 +120,8 @@ def run_download(job_id: str, url: str):
             job.error = "Download completed but file not found"
     except Exception as e:
         job.status = "error"
-        err = str(e)
-        if is_instagram and ("login required" in err.lower() or "rate-limit" in err.lower()):
-            err += " — upload an Instagram cookies.txt in Settings to fix this."
-        job.error = err
+        job.error = str(e)
+        job.error_type = _classify_error(job.error, is_instagram, is_tiktok)
 
 @router.post("/", response_model=DownloadStatus)
 async def start_download(req: DownloadRequest, background_tasks: BackgroundTasks):

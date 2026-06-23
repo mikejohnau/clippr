@@ -34,4 +34,5 @@ export interface DownloadJob {
   status: 'queued' | 'downloading' | 'done' | 'error'
   filename?: string
   error?: string
+  error_type?: 'instagram_login_required' | 'tiktok_blocked' | 'video_unavailable' | 'rate_limited' | 'unknown'
 }

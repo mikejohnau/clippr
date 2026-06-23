@@ -639,7 +639,8 @@ export default function App() {
                             onToggleSave={() => removeFromProject(pc.row_id)}
                             projects={projects}
                             onSaveToProject={saveToProject}
-                            previouslyDownloaded={downloadedIds.has(downloadKey(pc.clip))} />
+                            previouslyDownloaded={downloadedIds.has(downloadKey(pc.clip))}
+                            onOpenInstagramSettings={() => setShowSettings(true)} />
                         </div>
                         <div style={{ flex: 1, padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0 }}>
                           <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Notes</div>
@@ -751,7 +752,8 @@ export default function App() {
                     onToggleSave={() => removeFromProject(projectClips.find(pc => pc.clip.id === clip.id && pc.clip.platform === clip.platform)?.row_id!)}
                     projects={projects}
                     onSaveToProject={saveToProject}
-                    previouslyDownloaded={downloadedIds.has(downloadKey(clip))} />
+                    previouslyDownloaded={downloadedIds.has(downloadKey(clip))}
+                    onOpenInstagramSettings={() => setShowSettings(true)} />
                 ))}
               </div>
             </>
@@ -811,7 +813,8 @@ export default function App() {
                           onToggleSave={() => removeFromProject(projectClips.find(pc => pc.clip.id === clip.id && pc.clip.platform === clip.platform)?.row_id!)}
                           projects={projects}
                           onSaveToProject={saveToProject}
-                          previouslyDownloaded={downloadedIds.has(downloadKey(clip))} />
+                          previouslyDownloaded={downloadedIds.has(downloadKey(clip))}
+                          onOpenInstagramSettings={() => setShowSettings(true)} />
                       </div>
                     )
                   })}
