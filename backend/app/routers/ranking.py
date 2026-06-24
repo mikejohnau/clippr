@@ -5,6 +5,7 @@ import os, uuid, subprocess, pathlib
 from app.routers.download import CLIPS_DIR
 from app.routers.edit import (
     _source_path, _find_font, _escape_drawtext, _ffmpeg_color, _outputs,
+    _build_overlay_filter, TEMPLATES,
 )
 
 router = APIRouter()
@@ -45,6 +46,14 @@ class RankingItem(BaseModel):
 class RankingBuildRequest(BaseModel):
     items: list[RankingItem]
     aspect_ratio: str = "9:16"
+    # Title overlay — shown throughout the whole combined video (same text,
+    # burned into every segment identically), separate from the per-clip
+    # rank-number badge above.
+    title: str = ""
+    title_template: str = "none"          # one of TEMPLATES keys (edit.py)
+    title_font_family: str = "sans-bold"
+    title_font_size: int = 0
+    title_font_color: str = "#ffffff"
 
 
 def _rank_overlay_filter(label: str, font_family: str, font_size: int, font_color: str, position: str) -> str:
@@ -71,6 +80,10 @@ def build_ranking(req: RankingBuildRequest):
     out_dir = os.path.join(CLIPS_DIR, "_ranking", build_id)
     os.makedirs(out_dir, exist_ok=True)
 
+    title_overlay = _build_overlay_filter(
+        req.title_template, req.title, req.title_font_family, req.title_font_size, req.title_font_color,
+    )
+
     segment_paths = []
     try:
         for i, item in enumerate(req.items):
@@ -81,11 +94,11 @@ def build_ranking(req: RankingBuildRequest):
                 raise HTTPException(400, f"Item {i + 1} has an invalid trim range")
 
             label = (item.label or "").strip() or f"#{item.rank}"
-            overlay = _rank_overlay_filter(label, item.font_family, item.font_size, item.font_color, item.position)
-            vf = (
-                f"scale={canvas_w}:{canvas_h}:force_original_aspect_ratio=increase,"
-                f"crop={canvas_w}:{canvas_h},{overlay}"
-            )
+            rank_overlay = _rank_overlay_filter(label, item.font_family, item.font_size, item.font_color, item.position)
+            filters = [f"scale={canvas_w}:{canvas_h}:force_original_aspect_ratio=increase", f"crop={canvas_w}:{canvas_h}", rank_overlay]
+            if title_overlay:
+                filters.append(title_overlay)
+            vf = ",".join(filters)
             seg_path = os.path.join(out_dir, f"seg_{i:03d}.mp4")
 
             if item.mute:

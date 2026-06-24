@@ -35,6 +35,13 @@ const POSITIONS = [
   { id: 'bottom-right', name: 'Bottom right' },
 ]
 
+const TITLE_TEMPLATES = [
+  { id: 'none', name: 'No title overlay' },
+  { id: 'bold-bottom', name: 'Bold Caption (Bottom)' },
+  { id: 'lower-third', name: 'Lower Third' },
+  { id: 'top-banner', name: 'Top Banner' },
+]
+
 function fmt(s: number) {
   const m = Math.floor(s / 60)
   const sec = (s % 60).toFixed(1)
@@ -180,6 +187,11 @@ export default function RankingBuilder({ projectClips, onRemove }: {
   const [fontSize, setFontSize] = useState(90)
   const [fontColor, setFontColor] = useState('#ffffff')
   const [position, setPosition] = useState('top-left')
+  const [titleText, setTitleText] = useState('')
+  const [titleTemplate, setTitleTemplate] = useState('none')
+  const [titleFontFamily, setTitleFontFamily] = useState('sans-bold')
+  const [titleFontSize, setTitleFontSize] = useState(0)
+  const [titleFontColor, setTitleFontColor] = useState('#ffffff')
   const [building, setBuilding] = useState(false)
   const [result, setResult] = useState<{ output_id: string; filename: string } | null>(null)
   const [buildError, setBuildError] = useState('')
@@ -263,7 +275,11 @@ export default function RankingBuilder({ projectClips, onRemove }: {
       })
       const res = await fetch('/api/ranking/build', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ items: reqItems, aspect_ratio: aspectRatio }),
+        body: JSON.stringify({
+          items: reqItems, aspect_ratio: aspectRatio,
+          title: titleText, title_template: titleTemplate,
+          title_font_family: titleFontFamily, title_font_size: titleFontSize, title_font_color: titleFontColor,
+        }),
       })
       if (!res.ok) throw new Error((await res.json()).detail || 'Build failed')
       setResult(await res.json())
@@ -413,6 +429,41 @@ export default function RankingBuilder({ projectClips, onRemove }: {
                   style={{ width: 38, height: 32, padding: 2, border: '1px solid var(--border)', borderRadius: 7, background: 'none' }} />
               </label>
             </div>
+          </div>
+
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>Title overlay (optional — shown throughout the whole final video, separate from the rank badge)</div>
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+              <select value={titleTemplate} onChange={e => setTitleTemplate(e.target.value)} style={{ height: 32, fontSize: 12, width: 'auto' }}>
+                {TITLE_TEMPLATES.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+              </select>
+              <input value={titleText} onChange={e => setTitleText(e.target.value)}
+                disabled={titleTemplate === 'none'}
+                placeholder="Title text…"
+                style={{ flex: 1, minWidth: 160, height: 32, fontSize: 12 }} />
+            </div>
+            {titleTemplate !== 'none' && (
+              <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', marginTop: 8 }}>
+                <label style={{ fontSize: 11, color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: 5 }}>
+                  Font
+                  <select value={titleFontFamily} onChange={e => setTitleFontFamily(e.target.value)} style={{ height: 32, fontSize: 12, width: 'auto' }}>
+                    {FONTS.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+                  </select>
+                </label>
+                <label style={{ fontSize: 11, color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: 5 }}>
+                  Size
+                  <input type="number" min={20} max={200} step={5} value={titleFontSize || 42}
+                    onChange={e => setTitleFontSize(parseInt(e.target.value, 10) || 0)}
+                    style={{ width: 56, height: 32, fontSize: 12 }} />
+                </label>
+                <label style={{ fontSize: 11, color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: 5 }}>
+                  Color
+                  <input type="color" value={titleFontColor} onChange={e => setTitleFontColor(e.target.value)}
+                    style={{ width: 38, height: 32, padding: 2, border: '1px solid var(--border)', borderRadius: 7, background: 'none' }} />
+                </label>
+                <span style={{ fontSize: 10, color: 'var(--muted)' }}>Burned into every segment — re-encodes, same as the rank badge.</span>
+              </div>
+            )}
           </div>
 
           <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', borderTop: '1px solid var(--border)', paddingTop: 12 }}>
