@@ -5,7 +5,7 @@ import os, uuid, subprocess, pathlib
 from app.routers.download import CLIPS_DIR
 from app.routers.edit import (
     _source_path, _find_font, _escape_drawtext, _ffmpeg_color, _outputs,
-    _build_overlay_filter, TEMPLATES,
+    _build_overlay_filter, _build_cta_filter, _cta_center_time, TEMPLATES,
 )
 
 router = APIRouter()
@@ -58,6 +58,21 @@ class RankingBuildRequest(BaseModel):
     title_bg_color: str = ""
     title_stroke_width: int = -1   # -1 = template default, 0 = no stroke
     title_stroke_color: str = ""   # hex color, "" = template default
+    # Call-to-action overlay ("Like & Subscribe", etc.) — held on screen for
+    # `cta_duration` seconds at each selected moment in `cta_moments`, timed
+    # against the whole combined video (not each individual clip).
+    cta_text: str = ""
+    cta_duration: float = 3.0
+    cta_moments: list[str] = ["end"]  # any of CTA_MOMENTS keys (edit.py): start, middle, end
+    cta_position: str = "bottom-center"  # one of CTA_POSITIONS keys (edit.py)
+    cta_font_family: str = "sans-bold"
+    cta_font_size: int = 0
+    cta_font_color: str = "#ffffff"
+    cta_bg_color: str = ""
+    cta_stroke_width: int = -1
+    cta_stroke_color: str = ""
+    cta_animation: str = "none"  # one of CTA_ANIMATIONS keys (edit.py)
+    cta_transition: float = 0.5  # seconds the fade/slide itself takes
 
 
 class RankingBuildStatus(BaseModel):
@@ -102,7 +117,41 @@ def _run_build(build_id: str, req: RankingBuildRequest):
     title_overlay = _build_overlay_filter(
         req.title_template, req.title, req.title_font_family, req.title_font_size,
         req.title_font_color, req.title_bg_color, req.title_stroke_width, req.title_stroke_color,
+        canvas_w,
     )
+
+    # Figure out which item each selected CTA moment ("start"/"middle"/"end"
+    # of the *whole combined video*) actually falls on, and at what local
+    # timestamp within that item's own clip — since the video is built by
+    # rendering each item separately and concatenating, a CTA can only be
+    # burned into the one item whose time range contains that moment.
+    durations = [item.end - item.start for item in req.items]
+    total_duration = sum(durations)
+    cumulative = []
+    acc = 0.0
+    for d in durations:
+        cumulative.append(acc)
+        acc += d
+
+    moment_targets: dict[int, list[tuple[str, float]]] = {}
+    if req.items:
+        if "start" in req.cta_moments:
+            center = _cta_center_time("start", req.cta_duration, req.cta_transition, durations[0])
+            moment_targets.setdefault(0, []).append(("start", center))
+        if "end" in req.cta_moments:
+            last = len(req.items) - 1
+            center = _cta_center_time("end", req.cta_duration, req.cta_transition, durations[last])
+            moment_targets.setdefault(last, []).append(("end", center))
+        if "middle" in req.cta_moments:
+            global_mid = total_duration / 2
+            idx = 0
+            for j, offset in enumerate(cumulative):
+                if offset <= global_mid:
+                    idx = j
+                else:
+                    break
+            local_center = max(0.0, min(durations[idx], global_mid - cumulative[idx]))
+            moment_targets.setdefault(idx, []).append(("middle", local_center))
 
     total_steps = len(req.items) + 1  # + 1 for the final concat/join step
     segment_paths = []
@@ -123,6 +172,14 @@ def _run_build(build_id: str, req: RankingBuildRequest):
             filters = [f"scale={canvas_w}:{canvas_h}:force_original_aspect_ratio=increase", f"crop={canvas_w}:{canvas_h}", rank_overlay]
             if title_overlay:
                 filters.append(title_overlay)
+            for _moment, center_time in moment_targets.get(i, []):
+                cta_overlay = _build_cta_filter(
+                    req.cta_text, req.cta_font_family, req.cta_font_size, req.cta_font_color, req.cta_bg_color,
+                    req.cta_stroke_width, req.cta_stroke_color, req.cta_position, req.cta_duration, durations[i],
+                    canvas_w, req.cta_animation, req.cta_transition, center_time,
+                )
+                if cta_overlay:
+                    filters.append(cta_overlay)
             vf = ",".join(filters)
             seg_path = os.path.join(out_dir, f"seg_{i:03d}.mp4")
 

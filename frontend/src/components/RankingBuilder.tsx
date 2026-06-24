@@ -35,6 +35,20 @@ const POSITIONS = [
   { id: 'bottom-right', name: 'Bottom right' },
 ]
 
+const CTA_POSITIONS = [...POSITIONS, { id: 'center', name: 'Center' }]
+
+const CTA_ANIMATIONS = [
+  { id: 'none', name: 'None (just appears)' },
+  { id: 'fade', name: 'Fade in/out' },
+  { id: 'slide', name: 'Slide in, fade out' },
+]
+
+const CTA_MOMENTS = [
+  { id: 'start', name: 'Start' },
+  { id: 'middle', name: 'Middle' },
+  { id: 'end', name: 'End' },
+]
+
 const TITLE_TEMPLATES = [
   { id: 'none', name: 'No title overlay' },
   { id: 'bold-bottom', name: 'Bold Caption (Bottom)' },
@@ -198,6 +212,17 @@ export default function RankingBuilder({ projectClips, onRemove, projectName }: 
   const [titleStrokeWidth, setTitleStrokeWidth] = useState(-1)   // -1 = template default
   const [titleStrokeColor, setTitleStrokeColor] = useState('#000000')
   const [titleStrokeColorEnabled, setTitleStrokeColorEnabled] = useState(false)
+  const [ctaText, setCtaText] = useState('')
+  const [ctaDuration, setCtaDuration] = useState(3)
+  const [ctaMoments, setCtaMoments] = useState<string[]>(['end'])
+  const [ctaPosition, setCtaPosition] = useState('bottom-center')
+  const [ctaAnimation, setCtaAnimation] = useState('fade')
+  const [ctaTransition, setCtaTransition] = useState(0.5)
+  const [ctaFontFamily, setCtaFontFamily] = useState('sans-bold')
+  const [ctaFontSize, setCtaFontSize] = useState(0)
+  const [ctaFontColor, setCtaFontColor] = useState('#ffffff')
+  const [ctaBgColor, setCtaBgColor] = useState('#000000')
+  const [ctaBgEnabled, setCtaBgEnabled] = useState(true)
   const [building, setBuilding] = useState(false)
   const [buildProgress, setBuildProgress] = useState(0)
   const [buildStep, setBuildStep] = useState('')
@@ -261,6 +286,10 @@ export default function RankingBuilder({ projectClips, onRemove, projectName }: 
     })
   }
 
+  function toggleCtaMoment(id: string) {
+    setCtaMoments(prev => prev.includes(id) ? prev.filter(m => m !== id) : [...prev, id])
+  }
+
   const orderedClips = order.map(id => projectClips.find(pc => pc.row_id === id)).filter(Boolean) as ProjectClip[]
   const readyCount = orderedClips.filter(pc => {
     const it = items[pc.row_id]
@@ -293,6 +322,10 @@ export default function RankingBuilder({ projectClips, onRemove, projectName }: 
           title_bg_color: titleBgEnabled ? titleBgColor : '',
           title_stroke_width: titleStrokeWidth,
           title_stroke_color: titleStrokeColorEnabled ? titleStrokeColor : '',
+          cta_text: ctaText, cta_duration: ctaDuration, cta_moments: ctaMoments, cta_position: ctaPosition,
+          cta_animation: ctaAnimation, cta_transition: ctaTransition,
+          cta_font_family: ctaFontFamily, cta_font_size: ctaFontSize, cta_font_color: ctaFontColor,
+          cta_bg_color: ctaBgEnabled ? ctaBgColor : '',
         }),
       })
       if (!res.ok) throw new Error((await res.json()).detail || 'Build failed')
@@ -516,6 +549,85 @@ export default function RankingBuilder({ projectClips, onRemove, projectName }: 
                 <span style={{ fontSize: 10, color: 'var(--muted)' }}>
                   Outline around the text — keeps it legible against any background. Leave width blank for the template default, or set 0 to disable.
                 </span>
+              </div>
+            )}
+          </div>
+
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>
+              Call to action (optional — "Like &amp; Subscribe", can appear up to 3 times)
+            </div>
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+              <input value={ctaText} onChange={e => setCtaText(e.target.value)}
+                placeholder="e.g. Like & Subscribe!"
+                style={{ flex: 1, minWidth: 160, height: 32, fontSize: 12 }} />
+              <label style={{ fontSize: 11, color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: 5 }}>
+                Held for
+                <input type="number" min={1} max={15} step={0.5} value={ctaDuration}
+                  onChange={e => setCtaDuration(parseFloat(e.target.value) || 3)}
+                  style={{ width: 56, height: 32, fontSize: 12 }} />
+                seconds
+              </label>
+            </div>
+            {ctaText.trim() && (
+              <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', marginTop: 8 }}>
+                <span style={{ fontSize: 11, color: 'var(--muted)' }}>Appears at:</span>
+                {CTA_MOMENTS.map(m => (
+                  <label key={m.id} style={{ fontSize: 11, color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer' }}>
+                    <input type="checkbox" checked={ctaMoments.includes(m.id)} onChange={() => toggleCtaMoment(m.id)} style={{ width: 'auto' }} />
+                    {m.name}
+                  </label>
+                ))}
+              </div>
+            )}
+            {ctaText.trim() && (
+              <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', marginTop: 8 }}>
+                <label style={{ fontSize: 11, color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: 5 }}>
+                  Position
+                  <select value={ctaPosition} onChange={e => setCtaPosition(e.target.value)} style={{ height: 32, fontSize: 12, width: 'auto' }}>
+                    {CTA_POSITIONS.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  </select>
+                </label>
+                <label style={{ fontSize: 11, color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: 5 }}>
+                  Animation
+                  <select value={ctaAnimation} onChange={e => setCtaAnimation(e.target.value)} style={{ height: 32, fontSize: 12, width: 'auto' }}>
+                    {CTA_ANIMATIONS.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                  </select>
+                </label>
+                {ctaAnimation !== 'none' && (
+                  <label style={{ fontSize: 11, color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: 5 }}>
+                    Transition speed
+                    <input type="number" min={0.1} max={2} step={0.1} value={ctaTransition}
+                      onChange={e => setCtaTransition(parseFloat(e.target.value) || 0.5)}
+                      style={{ width: 56, height: 32, fontSize: 12 }} />
+                    sec
+                  </label>
+                )}
+                <label style={{ fontSize: 11, color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: 5 }}>
+                  Font
+                  <select value={ctaFontFamily} onChange={e => setCtaFontFamily(e.target.value)} style={{ height: 32, fontSize: 12, width: 'auto' }}>
+                    {FONTS.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+                  </select>
+                </label>
+                <label style={{ fontSize: 11, color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: 5 }}>
+                  Size
+                  <input type="number" min={20} max={120} step={5} value={ctaFontSize || 48}
+                    onChange={e => setCtaFontSize(parseInt(e.target.value, 10) || 0)}
+                    style={{ width: 56, height: 32, fontSize: 12 }} />
+                </label>
+                <label style={{ fontSize: 11, color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: 5 }}>
+                  Text color
+                  <input type="color" value={ctaFontColor} onChange={e => setCtaFontColor(e.target.value)}
+                    style={{ width: 38, height: 32, padding: 2, border: '1px solid var(--border)', borderRadius: 7, background: 'none' }} />
+                </label>
+                <label style={{ fontSize: 11, color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: 5 }}>
+                  <input type="checkbox" checked={ctaBgEnabled} onChange={e => setCtaBgEnabled(e.target.checked)} style={{ width: 'auto' }} />
+                  Background pill
+                </label>
+                {ctaBgEnabled && (
+                  <input type="color" value={ctaBgColor} onChange={e => setCtaBgColor(e.target.value)}
+                    style={{ width: 38, height: 32, padding: 2, border: '1px solid var(--border)', borderRadius: 7, background: 'none' }} />
+                )}
               </div>
             )}
           </div>

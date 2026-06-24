@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import FileResponse, StreamingResponse, Response
 from pydantic import BaseModel
-import os, re, glob, uuid, subprocess, json, pathlib, shutil
+import os, re, glob, uuid, subprocess, json, pathlib, shutil, textwrap
 
 from app.routers.download import jobs, CLIPS_DIR
 
@@ -100,6 +100,30 @@ def _duration(path: str) -> float:
         return 0.0
 
 
+def _video_dims(path: str) -> tuple[int, int]:
+    r = subprocess.run(
+        ["ffprobe", "-v", "error", "-select_streams", "v:0",
+         "-show_entries", "stream=width,height", "-of", "csv=p=0", path],
+        capture_output=True, text=True,
+    )
+    try:
+        w, h = r.stdout.strip().split(",")
+        return int(w), int(h)
+    except Exception:
+        return (0, 0)
+
+
+def _cropped_width(src_width: int, src_height: int, aspect_ratio: str) -> int:
+    """Mirror _build_crop_filter's crop math in Python, to know the actual
+    pixel width text will need to fit inside (for word-wrapping)."""
+    if src_width <= 0 or src_height <= 0:
+        return 0
+    if aspect_ratio == "original" or aspect_ratio not in ASPECT_RATIOS:
+        return src_width
+    tw, th = (int(x) for x in aspect_ratio.split(":"))
+    return min(src_width, int(src_height * tw / th))
+
+
 # font family id -> list of candidate file paths (Debian first, macOS fallback for local dev)
 _FONT_FAMILIES: dict[str, list[str]] = {
     "sans-bold": [
@@ -142,6 +166,18 @@ def _find_font(family: str) -> str | None:
     return None
 
 
+def _wrap_text(text: str, canvas_width: int, font_size: int, side_margin: int = 80) -> str:
+    """Word-wrap text to fit within the video's width, so long titles/CTAs
+    don't run off the edges of narrow canvases (e.g. 9:16). Returns text with
+    real newline characters — ffmpeg's drawtext renders those as line breaks."""
+    if canvas_width <= 0 or font_size <= 0:
+        return text
+    avg_char_width = font_size * 0.6  # rough estimate for a bold sans-serif glyph
+    chars_per_line = max(4, int((canvas_width - 2 * side_margin) / avg_char_width))
+    wrapped = textwrap.wrap(text, width=chars_per_line)
+    return "\n".join(wrapped) if wrapped else text
+
+
 def _escape_drawtext(text: str) -> str:
     return (
         text.replace("\\", "\\\\")
@@ -178,7 +214,7 @@ _TEMPLATE_DEFAULT_STROKE_WIDTH = {
 
 def _build_overlay_filter(
     template: str, text: str, font_family: str, font_size: int, font_color: str,
-    bg_color: str = "", stroke_width: int = -1, stroke_color: str = "",
+    bg_color: str = "", stroke_width: int = -1, stroke_color: str = "", canvas_width: int = 0,
 ) -> str | None:
     text = text.strip()
     if template == "none" or not text:
@@ -186,8 +222,11 @@ def _build_overlay_filter(
 
     font = _find_font(font_family)
     font_arg = f"fontfile='{font}':" if font else ""
-    esc = _escape_drawtext(text)
     size = font_size or _TEMPLATE_DEFAULT_SIZE.get(template, 42)
+    # lower-third/top-banner have side padding (x=40) the full-width box doesn't;
+    # bold-bottom is centered with no fixed box, so just use the canvas width directly.
+    margin = 40 if template in ("lower-third", "top-banner") else 80
+    esc = _escape_drawtext(_wrap_text(text, canvas_width, size, margin))
     color = _ffmpeg_color(font_color)
 
     # stroke_width < 0 means "use the template default"; 0 means "no stroke"
@@ -219,6 +258,120 @@ def _build_overlay_filter(
             f"{stroke}x=(w-text_w)/2:y=(90-text_h)/2"
         )
     return None
+
+
+CTA_POSITIONS = {
+    "top-left": {"name": "Top left", "x": "40", "y": "40"},
+    "top-right": {"name": "Top right", "x": "w-text_w-40", "y": "40"},
+    "top-center": {"name": "Top center", "x": "(w-text_w)/2", "y": "40"},
+    "bottom-left": {"name": "Bottom left", "x": "40", "y": "h-text_h-40"},
+    "bottom-right": {"name": "Bottom right", "x": "w-text_w-40", "y": "h-text_h-40"},
+    "bottom-center": {"name": "Bottom center", "x": "(w-text_w)/2", "y": "h-text_h-40"},
+    "center": {"name": "Center", "x": "(w-text_w)/2", "y": "(h-text_h)/2"},
+}
+
+
+CTA_ANIMATIONS = {
+    "none": {"name": "None (just appears)"},
+    "fade": {"name": "Fade in/out"},
+    "slide": {"name": "Slide in, fade out"},
+}
+
+
+CTA_MOMENTS = {
+    "start": {"name": "Start of video"},
+    "middle": {"name": "Middle of video"},
+    "end": {"name": "End of video"},
+}
+
+
+def _cta_center_time(moment: str, show_for: float, transition: float, clip_duration: float) -> float:
+    """The timestamp (within this clip's own local timeline) around which a
+    CTA's hold period should be centered, so that its appear/disappear
+    envelope lands exactly at the start, middle, or end of the clip."""
+    half_hold = show_for / 2
+    if moment == "start":
+        return half_hold + transition  # envelope begins exactly at t=0
+    if moment == "end":
+        return clip_duration - half_hold - transition  # envelope ends exactly at clip_duration
+    return clip_duration / 2  # "middle" — envelope centered on the midpoint
+
+
+def _build_cta_filter(
+    text: str, font_family: str, font_size: int, font_color: str, bg_color: str,
+    stroke_width: int, stroke_color: str, position: str, show_for: float, clip_duration: float,
+    canvas_width: int = 0, animation: str = "none", transition: float = 0.5,
+    center_time: float | None = None,
+) -> str | None:
+    """A 'Like & Subscribe'-style call-to-action with two independent timers:
+    `show_for` is how long it's held fully on screen, `transition` is how
+    long the appear/disappear animation itself takes. The two stack — the
+    CTA spends `transition` seconds appearing, is fully visible for
+    `show_for` seconds, then spends `transition` seconds disappearing, with
+    the whole envelope centered on `center_time` (defaults to ending exactly
+    at the clip's end, i.e. the original end-of-video behavior)."""
+    text = text.strip()
+    if not text or show_for <= 0 or clip_duration <= 0:
+        return None
+
+    font = _find_font(font_family)
+    font_arg = f"fontfile='{font}':" if font else ""
+    size = font_size or 48
+    esc = _escape_drawtext(_wrap_text(text, canvas_width, size))
+    color = _ffmpeg_color(font_color)
+
+    width = 2 if stroke_width < 0 else stroke_width
+    if width > 0:
+        s_color = _ffmpeg_color(stroke_color) if stroke_color else "black@0.8"
+        stroke = f"borderw={width}:bordercolor={s_color}:"
+    else:
+        stroke = ""
+
+    box = f":box=1:boxcolor={_ffmpeg_color(bg_color)}:boxborderw=10" if bg_color else ""
+    pos = CTA_POSITIONS.get(position, CTA_POSITIONS["bottom-center"])
+    transition = max(transition, 0.0)
+    if center_time is None:
+        center_time = _cta_center_time("end", show_for, transition, clip_duration)
+    # The appear/disappear animations are *additional* to the hold time, not
+    # carved out of it — the whole envelope is centered on `center_time`.
+    start = max(0.0, center_time - show_for / 2 - transition)
+    end = min(clip_duration, center_time + show_for / 2 + transition)
+    window = end - start
+    # if the clip is too short for the full envelope, shrink the transition
+    # rather than let appear/disappear overlap each other
+    tr = min(transition, window / 2) if window > 0 else 0
+
+    x_expr = pos["x"]
+    y_expr = pos["y"]
+    alpha_expr = None
+
+    # `enable` always gates visibility to [start, end]; alpha/position
+    # expressions below only need to shape the transition *within* that
+    # window — they don't need their own "before start" / "after end" cases.
+    if animation == "fade" and tr > 0:
+        alpha_expr = (
+            f"if(lt(t,{start + tr:.3f}),(t-{start:.3f})/{tr:.3f},"
+            f"if(lt(t,{end - tr:.3f}),1,({end:.3f}-t)/{tr:.3f}))"
+        )
+    elif animation == "slide" and tr > 0:
+        # Slide in from the nearest off-screen edge, then fade out at the end.
+        slide_px = 160
+        sign = -1 if position.startswith("top") else 1
+        y_expr = (
+            f"({pos['y']})+{sign * slide_px}-{sign * slide_px}*"
+            f"(t-{start:.3f})/{tr:.3f}*between(t,{start:.3f},{start + tr:.3f})"
+        )
+        alpha_expr = f"if(lt(t,{end - tr:.3f}),1,({end:.3f}-t)/{tr:.3f})"
+
+    alpha = f":alpha='{alpha_expr}'" if alpha_expr else ""
+    enable = f":enable='between(t,{start:.3f},{end:.3f})'"
+
+    # Quote x/y — the slide animation's y expression calls between(t,a,b),
+    # whose commas would otherwise be misread as filtergraph separators.
+    return (
+        f"drawtext={font_arg}text='{esc}':fontsize={size}:fontcolor={color}:"
+        f"{stroke}x='{x_expr}':y='{y_expr}'{enable}{alpha}{box}"
+    )
 
 
 ASPECT_RATIOS = {
@@ -254,6 +407,20 @@ class Segment(BaseModel):
     stroke_width: int = -1       # -1 = template default, 0 = no stroke
     stroke_color: str = ""       # hex color, "" = template default
     aspect_ratio: str = "original"  # one of ASPECT_RATIOS keys
+    # Call-to-action overlay ("Like & Subscribe", etc.) — held on screen for
+    # `cta_duration` seconds at each selected moment in `cta_moments`.
+    cta_text: str = ""
+    cta_duration: float = 3.0
+    cta_moments: list[str] = ["end"]  # any of CTA_MOMENTS keys: start, middle, end
+    cta_position: str = "bottom-center"  # one of CTA_POSITIONS keys
+    cta_font_family: str = "sans-bold"
+    cta_font_size: int = 0
+    cta_font_color: str = "#ffffff"
+    cta_bg_color: str = ""
+    cta_stroke_width: int = -1
+    cta_stroke_color: str = ""
+    cta_animation: str = "none"  # one of CTA_ANIMATIONS keys
+    cta_transition: float = 0.5  # seconds the fade/slide itself takes
 
 
 class ExtractRequest(BaseModel):
@@ -339,6 +506,7 @@ def extract_segments(job_id: str, req: ExtractRequest):
 
     out_dir = os.path.join(CLIPS_DIR, job_id, "outputs")
     os.makedirs(out_dir, exist_ok=True)
+    src_w, src_h = _video_dims(src)
 
     results = []
     for i, seg in enumerate(req.segments):
@@ -348,13 +516,23 @@ def extract_segments(job_id: str, req: ExtractRequest):
         safe_label = "".join(c if c.isalnum() or c in "-_ " else "_" for c in label).strip()
         out_file = os.path.join(out_dir, f"{output_id}_{safe_label}.mp4")
 
+        canvas_w = _cropped_width(src_w, src_h, seg.aspect_ratio)
         crop_filter = _build_crop_filter(seg.aspect_ratio)
         overlay_filter = _build_overlay_filter(
             seg.template, seg.title, seg.font_family, seg.font_size, seg.font_color, seg.bg_color,
-            seg.stroke_width, seg.stroke_color,
+            seg.stroke_width, seg.stroke_color, canvas_w,
         )
+        clip_duration = seg.end - seg.start
+        cta_filters = []
+        for moment in seg.cta_moments:
+            center_time = _cta_center_time(moment, seg.cta_duration, seg.cta_transition, clip_duration)
+            cta_filters.append(_build_cta_filter(
+                seg.cta_text, seg.cta_font_family, seg.cta_font_size, seg.cta_font_color, seg.cta_bg_color,
+                seg.cta_stroke_width, seg.cta_stroke_color, seg.cta_position, seg.cta_duration, clip_duration,
+                canvas_w, seg.cta_animation, seg.cta_transition, center_time,
+            ))
         # crop first so overlay coordinates are relative to the final cropped frame
-        video_filter = ",".join(f for f in (crop_filter, overlay_filter) if f) or None
+        video_filter = ",".join(f for f in (crop_filter, overlay_filter, *cta_filters) if f) or None
 
         cmd = ["ffmpeg", "-y", "-ss", str(seg.start), "-to", str(seg.end), "-i", src]
         if video_filter:
