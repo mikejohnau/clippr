@@ -169,8 +169,16 @@ TEMPLATES = {
 }
 
 
+_TEMPLATE_DEFAULT_STROKE_WIDTH = {
+    "bold-bottom": 4,
+    "lower-third": 2,
+    "top-banner": 2,
+}
+
+
 def _build_overlay_filter(
     template: str, text: str, font_family: str, font_size: int, font_color: str,
+    bg_color: str = "", stroke_width: int = -1, stroke_color: str = "",
 ) -> str | None:
     text = text.strip()
     if template == "none" or not text:
@@ -182,22 +190,33 @@ def _build_overlay_filter(
     size = font_size or _TEMPLATE_DEFAULT_SIZE.get(template, 42)
     color = _ffmpeg_color(font_color)
 
+    # stroke_width < 0 means "use the template default"; 0 means "no stroke"
+    width = _TEMPLATE_DEFAULT_STROKE_WIDTH.get(template, 2) if stroke_width < 0 else stroke_width
+    if width > 0:
+        s_color = _ffmpeg_color(stroke_color) if stroke_color else ("black" if template == "bold-bottom" else "black@0.8")
+        stroke = f"borderw={width}:bordercolor={s_color}:"
+    else:
+        stroke = ""
+
     if template == "bold-bottom":
+        box = f":box=1:boxcolor={_ffmpeg_color(bg_color)}:boxborderw=14" if bg_color else ""
         return (
             f"drawtext={font_arg}text='{esc}':fontsize={size}:fontcolor={color}:"
-            f"borderw=4:bordercolor=black:x=(w-text_w)/2:y=h-text_h-70"
+            f"{stroke}x=(w-text_w)/2:y=h-text_h-70{box}"
         )
     if template == "lower-third":
+        bar_color = _ffmpeg_color(bg_color) + "@0.55" if bg_color else "black@0.55"
         return (
-            "drawbox=x=0:y=ih-ih/6:w=iw:h=ih/6:color=black@0.55:t=fill,"
+            f"drawbox=x=0:y=ih-ih/6:w=iw:h=ih/6:color={bar_color}:t=fill,"
             f"drawtext={font_arg}text='{esc}':fontsize={size}:fontcolor={color}:"
-            "x=40:y=ih-ih/6+(ih/6-text_h)/2"
+            f"{stroke}x=40:y=ih-ih/6+(ih/6-text_h)/2"
         )
     if template == "top-banner":
+        bar_color = _ffmpeg_color(bg_color) + "@0.65" if bg_color else "black@0.65"
         return (
-            "drawbox=x=0:y=0:w=iw:h=90:color=black@0.65:t=fill,"
+            f"drawbox=x=0:y=0:w=iw:h=90:color={bar_color}:t=fill,"
             f"drawtext={font_arg}text='{esc}':fontsize={size}:fontcolor={color}:"
-            "x=(w-text_w)/2:y=(90-text_h)/2"
+            f"{stroke}x=(w-text_w)/2:y=(90-text_h)/2"
         )
     return None
 
@@ -231,6 +250,9 @@ class Segment(BaseModel):
     font_family: str = "sans-bold"  # one of FONTS keys
     font_size: int = 0           # 0 = use template default
     font_color: str = "#ffffff"  # hex color
+    bg_color: str = ""           # hex color, "" = template default
+    stroke_width: int = -1       # -1 = template default, 0 = no stroke
+    stroke_color: str = ""       # hex color, "" = template default
     aspect_ratio: str = "original"  # one of ASPECT_RATIOS keys
 
 
@@ -328,7 +350,8 @@ def extract_segments(job_id: str, req: ExtractRequest):
 
         crop_filter = _build_crop_filter(seg.aspect_ratio)
         overlay_filter = _build_overlay_filter(
-            seg.template, seg.title, seg.font_family, seg.font_size, seg.font_color,
+            seg.template, seg.title, seg.font_family, seg.font_size, seg.font_color, seg.bg_color,
+            seg.stroke_width, seg.stroke_color,
         )
         # crop first so overlay coordinates are relative to the final cropped frame
         video_filter = ",".join(f for f in (crop_filter, overlay_filter) if f) or None
@@ -365,25 +388,25 @@ def extract_segments(job_id: str, req: ExtractRequest):
 
 
 @router.get("/outputs/{output_id}/serve")
-def serve_output(output_id: str):
+def serve_output(output_id: str, request: Request):
     path = _outputs.get(output_id)
     if not path or not os.path.exists(path):
         raise HTTPException(404, "Output not found")
-    # strip the UUID prefix to get a clean download name
-    basename = os.path.basename(path)
-    parts = basename.split("_", 1)
-    clean_name = parts[1] if len(parts) == 2 else basename
+    # Range support lets the result preview <video> seek; the frontend's
+    # download button still forces a save via the <a download> attribute.
+    return ranged_file_response(path, request)
 
-    def _stream():
-        with open(path, "rb") as f:
-            while chunk := f.read(64 * 1024):
-                yield chunk
 
-    return StreamingResponse(
-        _stream(),
-        media_type="video/mp4",
-        headers={"Content-Disposition": f'attachment; filename="{clean_name}"'},
-    )
+@router.head("/outputs/{output_id}/serve")
+def serve_output_head(output_id: str):
+    path = _outputs.get(output_id)
+    if not path or not os.path.exists(path):
+        raise HTTPException(404, "Output not found")
+    return Response(headers={
+        "Content-Length": str(os.path.getsize(path)),
+        "Accept-Ranges": "bytes",
+        "Content-Type": "video/mp4",
+    })
 
 
 @router.delete("/workspace/{job_id}")

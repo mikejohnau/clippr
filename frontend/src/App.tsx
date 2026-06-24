@@ -691,7 +691,8 @@ export default function App() {
               </div>
 
               {projects.find(p => p.id === activeProjectId)?.template === 'ranking' ? (
-                <RankingBuilder projectClips={projectClips} onRemove={removeFromProject} />
+                <RankingBuilder projectClips={projectClips} onRemove={removeFromProject}
+                  projectName={projects.find(p => p.id === activeProjectId)?.name ?? 'ranking_video'} />
               ) : projectClips.length === 0 ? (
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '80px 0', color: 'var(--muted)', textAlign: 'center', gap: 8 }}>
                   <div style={{ fontSize: 36 }}>📁</div>

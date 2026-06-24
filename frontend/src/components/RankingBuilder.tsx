@@ -174,9 +174,10 @@ function TrimEditorModal({ title, jobId, item, onUpdate, onClose }: {
 
 // ── Main builder ─────────────────────────────────────────────────────────────
 
-export default function RankingBuilder({ projectClips, onRemove }: {
+export default function RankingBuilder({ projectClips, onRemove, projectName }: {
   projectClips: ProjectClip[]
   onRemove: (rowId: number) => void
+  projectName?: string
 }) {
   // Order of row_ids — defaults to project order, reorderable, synced when clips are added/removed elsewhere
   const [order, setOrder] = useState<number[]>([])
@@ -192,7 +193,14 @@ export default function RankingBuilder({ projectClips, onRemove }: {
   const [titleFontFamily, setTitleFontFamily] = useState('sans-bold')
   const [titleFontSize, setTitleFontSize] = useState(0)
   const [titleFontColor, setTitleFontColor] = useState('#ffffff')
+  const [titleBgColor, setTitleBgColor] = useState('#000000')
+  const [titleBgEnabled, setTitleBgEnabled] = useState(false)
+  const [titleStrokeWidth, setTitleStrokeWidth] = useState(-1)   // -1 = template default
+  const [titleStrokeColor, setTitleStrokeColor] = useState('#000000')
+  const [titleStrokeColorEnabled, setTitleStrokeColorEnabled] = useState(false)
   const [building, setBuilding] = useState(false)
+  const [buildProgress, setBuildProgress] = useState(0)
+  const [buildStep, setBuildStep] = useState('')
   const [result, setResult] = useState<{ output_id: string; filename: string } | null>(null)
   const [buildError, setBuildError] = useState('')
 
@@ -263,6 +271,8 @@ export default function RankingBuilder({ projectClips, onRemove }: {
   async function build() {
     setBuilding(true)
     setBuildError('')
+    setBuildProgress(0)
+    setBuildStep('Queuing build…')
     setResult(null)
     try {
       const n = orderedClips.length
@@ -277,12 +287,27 @@ export default function RankingBuilder({ projectClips, onRemove }: {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           items: reqItems, aspect_ratio: aspectRatio,
+          output_name: projectName || 'ranking_video',
           title: titleText, title_template: titleTemplate,
           title_font_family: titleFontFamily, title_font_size: titleFontSize, title_font_color: titleFontColor,
+          title_bg_color: titleBgEnabled ? titleBgColor : '',
+          title_stroke_width: titleStrokeWidth,
+          title_stroke_color: titleStrokeColorEnabled ? titleStrokeColor : '',
         }),
       })
       if (!res.ok) throw new Error((await res.json()).detail || 'Build failed')
-      setResult(await res.json())
+      const { build_id } = await res.json()
+
+      const status: any = await new Promise((resolve, reject) => {
+        const iv = setInterval(async () => {
+          const s = await fetch(`/api/ranking/build/${build_id}`).then(r => r.json())
+          setBuildProgress(s.progress || 0)
+          setBuildStep(s.step || '')
+          if (s.status === 'done') { clearInterval(iv); resolve(s) }
+          else if (s.status === 'error') { clearInterval(iv); reject(new Error(s.error || 'Build failed')) }
+        }, 1200)
+      })
+      setResult(status)
     } catch (e: any) {
       setBuildError(e.message || 'Build failed')
     } finally {
@@ -457,11 +482,40 @@ export default function RankingBuilder({ projectClips, onRemove }: {
                     style={{ width: 56, height: 32, fontSize: 12 }} />
                 </label>
                 <label style={{ fontSize: 11, color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: 5 }}>
-                  Color
+                  Text color
                   <input type="color" value={titleFontColor} onChange={e => setTitleFontColor(e.target.value)}
                     style={{ width: 38, height: 32, padding: 2, border: '1px solid var(--border)', borderRadius: 7, background: 'none' }} />
                 </label>
-                <span style={{ fontSize: 10, color: 'var(--muted)' }}>Burned into every segment — re-encodes, same as the rank badge.</span>
+                <label style={{ fontSize: 11, color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: 5 }}>
+                  <input type="checkbox" checked={titleBgEnabled} onChange={e => setTitleBgEnabled(e.target.checked)} style={{ width: 'auto' }} />
+                  Background color
+                </label>
+                {titleBgEnabled && (
+                  <input type="color" value={titleBgColor} onChange={e => setTitleBgColor(e.target.value)}
+                    style={{ width: 38, height: 32, padding: 2, border: '1px solid var(--border)', borderRadius: 7, background: 'none' }} />
+                )}
+              </div>
+            )}
+            {titleTemplate !== 'none' && (
+              <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', marginTop: 8 }}>
+                <label style={{ fontSize: 11, color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: 5 }}>
+                  Stroke width
+                  <input type="number" min={0} max={20} step={1} value={titleStrokeWidth < 0 ? '' : titleStrokeWidth}
+                    placeholder="default"
+                    onChange={e => setTitleStrokeWidth(e.target.value === '' ? -1 : (parseInt(e.target.value, 10) || 0))}
+                    style={{ width: 64, height: 32, fontSize: 12 }} />
+                </label>
+                <label style={{ fontSize: 11, color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: 5 }}>
+                  <input type="checkbox" checked={titleStrokeColorEnabled} onChange={e => setTitleStrokeColorEnabled(e.target.checked)} style={{ width: 'auto' }} />
+                  Stroke color
+                </label>
+                {titleStrokeColorEnabled && (
+                  <input type="color" value={titleStrokeColor} onChange={e => setTitleStrokeColor(e.target.value)}
+                    style={{ width: 38, height: 32, padding: 2, border: '1px solid var(--border)', borderRadius: 7, background: 'none' }} />
+                )}
+                <span style={{ fontSize: 10, color: 'var(--muted)' }}>
+                  Outline around the text — keeps it legible against any background. Leave width blank for the template default, or set 0 to disable.
+                </span>
               </div>
             )}
           </div>
@@ -474,21 +528,37 @@ export default function RankingBuilder({ projectClips, onRemove }: {
             }}>
               {building ? 'Building…' : `Build ranking video (${orderedClips.length})`}
             </button>
-            {!canBuild && (
+            {!canBuild && !building && (
               <span style={{ fontSize: 11, color: 'var(--muted)' }}>
                 {orderedClips.length < 2 ? 'Add at least 2 clips to this project.' : 'Edit every clip above (with a valid trim range) to enable building.'}
               </span>
             )}
           </div>
 
+          {building && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <div style={{ position: 'relative', height: 8, background: 'var(--border)', borderRadius: 99, overflow: 'hidden' }}>
+                <div style={{
+                  position: 'absolute', inset: 0, width: `${buildProgress}%`,
+                  background: 'var(--accent)', borderRadius: 99, transition: 'width 0.3s ease',
+                }} />
+              </div>
+              <span style={{ fontSize: 11, color: 'var(--muted)' }}>{buildStep || 'Building…'} ({buildProgress}%)</span>
+            </div>
+          )}
+
           {buildError && <div style={{ color: 'var(--error)', fontSize: 13 }}>{buildError}</div>}
 
           {result && (
-            <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, padding: '10px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span style={{ color: 'var(--success)', fontSize: 13, fontWeight: 600 }}>✓ Ranking video built</span>
-              <button onClick={downloadResult} style={{ background: 'var(--success)', color: '#fff', fontWeight: 700, fontSize: 12, padding: '6px 14px', borderRadius: 7 }}>
-                ↓ Download
-              </button>
+            <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, padding: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ color: 'var(--success)', fontSize: 13, fontWeight: 600 }}>✓ Ranking video built</span>
+                <button onClick={downloadResult} style={{ background: 'var(--success)', color: '#fff', fontWeight: 700, fontSize: 12, padding: '6px 14px', borderRadius: 7 }}>
+                  ↓ Download
+                </button>
+              </div>
+              <video src={`/api/edit/outputs/${result.output_id}/serve`} controls
+                style={{ width: '100%', maxHeight: 480, borderRadius: 8, background: '#000', display: 'block' }} />
             </div>
           )}
         </div>
