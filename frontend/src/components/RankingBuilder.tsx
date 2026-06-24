@@ -12,6 +12,61 @@ interface ItemState {
   label: string
 }
 
+// ── Persistence — remember every field across refreshes, scoped per project ──
+
+interface PersistedState {
+  order: number[]
+  items: Record<number, ItemState>
+  aspectRatio: string
+  fontFamily: string
+  fontSize: number
+  fontColor: string
+  position: string
+  titleText: string
+  titleTemplate: string
+  titleFontFamily: string
+  titleFontSize: number
+  titleFontColor: string
+  titleBgColor: string
+  titleBgEnabled: boolean
+  titleStrokeWidth: number
+  titleStrokeColor: string
+  titleStrokeColorEnabled: boolean
+  ctaText: string
+  ctaDuration: number
+  ctaMoments: string[]
+  ctaPosition: string
+  ctaAnimation: string
+  ctaTransition: number
+  ctaFontFamily: string
+  ctaFontSize: number
+  ctaFontColor: string
+  ctaBgColor: string
+  ctaBgEnabled: boolean
+}
+
+function storageKey(projectId?: string) {
+  return `clippr_ranking_v1_${projectId || 'default'}`
+}
+
+function loadPersisted(projectId?: string): Partial<PersistedState> | null {
+  try {
+    const raw = localStorage.getItem(storageKey(projectId))
+    if (!raw) return null
+    const parsed = JSON.parse(raw)
+    // never resurrect a stuck "downloading"/error state from a previous session
+    if (parsed.items) {
+      for (const id of Object.keys(parsed.items)) {
+        parsed.items[id].downloading = false
+        parsed.items[id].error = null
+      }
+    }
+    return parsed
+  } catch {
+    return null
+  }
+}
+
 const FONTS = [
   { id: 'sans-bold', name: 'Sans Bold' },
   { id: 'sans-regular', name: 'Sans Regular' },
@@ -188,41 +243,44 @@ function TrimEditorModal({ title, jobId, item, onUpdate, onClose }: {
 
 // ── Main builder ─────────────────────────────────────────────────────────────
 
-export default function RankingBuilder({ projectClips, onRemove, projectName }: {
+export default function RankingBuilder({ projectClips, onRemove, projectName, projectId }: {
   projectClips: ProjectClip[]
   onRemove: (rowId: number) => void
   projectName?: string
+  projectId?: string
 }) {
+  const [saved] = useState(() => loadPersisted(projectId))
+
   // Order of row_ids — defaults to project order, reorderable, synced when clips are added/removed elsewhere
-  const [order, setOrder] = useState<number[]>([])
-  const [items, setItems] = useState<Record<number, ItemState>>({})
+  const [order, setOrder] = useState<number[]>(saved?.order ?? [])
+  const [items, setItems] = useState<Record<number, ItemState>>(saved?.items ?? {})
   const [editingRowId, setEditingRowId] = useState<number | null>(null)
-  const [aspectRatio, setAspectRatio] = useState('9:16')
-  const [fontFamily, setFontFamily] = useState('sans-bold')
-  const [fontSize, setFontSize] = useState(90)
-  const [fontColor, setFontColor] = useState('#ffffff')
-  const [position, setPosition] = useState('top-left')
-  const [titleText, setTitleText] = useState('')
-  const [titleTemplate, setTitleTemplate] = useState('none')
-  const [titleFontFamily, setTitleFontFamily] = useState('sans-bold')
-  const [titleFontSize, setTitleFontSize] = useState(0)
-  const [titleFontColor, setTitleFontColor] = useState('#ffffff')
-  const [titleBgColor, setTitleBgColor] = useState('#000000')
-  const [titleBgEnabled, setTitleBgEnabled] = useState(false)
-  const [titleStrokeWidth, setTitleStrokeWidth] = useState(-1)   // -1 = template default
-  const [titleStrokeColor, setTitleStrokeColor] = useState('#000000')
-  const [titleStrokeColorEnabled, setTitleStrokeColorEnabled] = useState(false)
-  const [ctaText, setCtaText] = useState('')
-  const [ctaDuration, setCtaDuration] = useState(3)
-  const [ctaMoments, setCtaMoments] = useState<string[]>(['end'])
-  const [ctaPosition, setCtaPosition] = useState('bottom-center')
-  const [ctaAnimation, setCtaAnimation] = useState('fade')
-  const [ctaTransition, setCtaTransition] = useState(0.5)
-  const [ctaFontFamily, setCtaFontFamily] = useState('sans-bold')
-  const [ctaFontSize, setCtaFontSize] = useState(0)
-  const [ctaFontColor, setCtaFontColor] = useState('#ffffff')
-  const [ctaBgColor, setCtaBgColor] = useState('#000000')
-  const [ctaBgEnabled, setCtaBgEnabled] = useState(true)
+  const [aspectRatio, setAspectRatio] = useState(saved?.aspectRatio ?? '9:16')
+  const [fontFamily, setFontFamily] = useState(saved?.fontFamily ?? 'sans-bold')
+  const [fontSize, setFontSize] = useState(saved?.fontSize ?? 90)
+  const [fontColor, setFontColor] = useState(saved?.fontColor ?? '#ffffff')
+  const [position, setPosition] = useState(saved?.position ?? 'top-left')
+  const [titleText, setTitleText] = useState(saved?.titleText ?? '')
+  const [titleTemplate, setTitleTemplate] = useState(saved?.titleTemplate ?? 'none')
+  const [titleFontFamily, setTitleFontFamily] = useState(saved?.titleFontFamily ?? 'sans-bold')
+  const [titleFontSize, setTitleFontSize] = useState(saved?.titleFontSize ?? 0)
+  const [titleFontColor, setTitleFontColor] = useState(saved?.titleFontColor ?? '#ffffff')
+  const [titleBgColor, setTitleBgColor] = useState(saved?.titleBgColor ?? '#000000')
+  const [titleBgEnabled, setTitleBgEnabled] = useState(saved?.titleBgEnabled ?? false)
+  const [titleStrokeWidth, setTitleStrokeWidth] = useState(saved?.titleStrokeWidth ?? -1)   // -1 = template default
+  const [titleStrokeColor, setTitleStrokeColor] = useState(saved?.titleStrokeColor ?? '#000000')
+  const [titleStrokeColorEnabled, setTitleStrokeColorEnabled] = useState(saved?.titleStrokeColorEnabled ?? false)
+  const [ctaText, setCtaText] = useState(saved?.ctaText ?? '')
+  const [ctaDuration, setCtaDuration] = useState(saved?.ctaDuration ?? 3)
+  const [ctaMoments, setCtaMoments] = useState<string[]>(saved?.ctaMoments ?? ['end'])
+  const [ctaPosition, setCtaPosition] = useState(saved?.ctaPosition ?? 'bottom-center')
+  const [ctaAnimation, setCtaAnimation] = useState(saved?.ctaAnimation ?? 'fade')
+  const [ctaTransition, setCtaTransition] = useState(saved?.ctaTransition ?? 0.5)
+  const [ctaFontFamily, setCtaFontFamily] = useState(saved?.ctaFontFamily ?? 'sans-bold')
+  const [ctaFontSize, setCtaFontSize] = useState(saved?.ctaFontSize ?? 0)
+  const [ctaFontColor, setCtaFontColor] = useState(saved?.ctaFontColor ?? '#ffffff')
+  const [ctaBgColor, setCtaBgColor] = useState(saved?.ctaBgColor ?? '#000000')
+  const [ctaBgEnabled, setCtaBgEnabled] = useState(saved?.ctaBgEnabled ?? true)
   const [building, setBuilding] = useState(false)
   const [buildProgress, setBuildProgress] = useState(0)
   const [buildStep, setBuildStep] = useState('')
@@ -245,6 +303,29 @@ export default function RankingBuilder({ projectClips, onRemove, projectName }: 
       return next
     })
   }, [projectClips])
+
+  // Persist every field to localStorage (per project) so a refresh doesn't
+  // lose trim points, labels, or any of the title/CTA styling.
+  useEffect(() => {
+    const state: PersistedState = {
+      order, items, aspectRatio, fontFamily, fontSize, fontColor, position,
+      titleText, titleTemplate, titleFontFamily, titleFontSize, titleFontColor,
+      titleBgColor, titleBgEnabled, titleStrokeWidth, titleStrokeColor, titleStrokeColorEnabled,
+      ctaText, ctaDuration, ctaMoments, ctaPosition, ctaAnimation, ctaTransition,
+      ctaFontFamily, ctaFontSize, ctaFontColor, ctaBgColor, ctaBgEnabled,
+    }
+    try {
+      localStorage.setItem(storageKey(projectId), JSON.stringify(state))
+    } catch {
+      // localStorage can throw if full/unavailable (private browsing, quota) — non-critical, just skip
+    }
+  }, [
+    projectId, order, items, aspectRatio, fontFamily, fontSize, fontColor, position,
+    titleText, titleTemplate, titleFontFamily, titleFontSize, titleFontColor,
+    titleBgColor, titleBgEnabled, titleStrokeWidth, titleStrokeColor, titleStrokeColorEnabled,
+    ctaText, ctaDuration, ctaMoments, ctaPosition, ctaAnimation, ctaTransition,
+    ctaFontFamily, ctaFontSize, ctaFontColor, ctaBgColor, ctaBgEnabled,
+  ])
 
   function update(rowId: number, patch: Partial<ItemState>) {
     setItems(prev => ({ ...prev, [rowId]: { ...prev[rowId], ...patch } }))
