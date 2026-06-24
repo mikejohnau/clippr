@@ -4,7 +4,10 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import Response
 import os, urllib.request
 
+import asyncio
+
 from app.db import init_db
+from app.cleanup import run_periodic_cleanup
 from app.routers import search, download, meta, trending, channels
 from app.routers import projects, downloads_history, edit, settings, ranking
 
@@ -20,6 +23,10 @@ app.add_middleware(
 @app.on_event("startup")
 def startup():
     init_db()
+    # Sweeps /clips on startup and every few hours after — downloaded source
+    # clips and ranking-build temp files are a working area, not permanent
+    # storage, so old ones get deleted automatically instead of piling up.
+    asyncio.create_task(run_periodic_cleanup())
 
 @app.get("/api/imgproxy")
 async def img_proxy(url: str = Query(...)):

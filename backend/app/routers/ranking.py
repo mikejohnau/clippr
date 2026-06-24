@@ -1,6 +1,6 @@
 from fastapi import APIRouter, BackgroundTasks, HTTPException
 from pydantic import BaseModel
-import os, uuid, subprocess, pathlib
+import os, uuid, subprocess, pathlib, shutil
 
 from app.routers.download import CLIPS_DIR
 from app.routers.edit import (
@@ -232,6 +232,19 @@ def _run_build(build_id: str, req: RankingBuildRequest):
         output_id = str(uuid.uuid4())
         _outputs[output_id] = final_path
 
+        # The per-segment renders and concat list were only ever needed to
+        # produce ranking_final.mp4 — drop them now so a build's footprint
+        # on disk is just the one final video, not every intermediate too.
+        for p in segment_paths:
+            try:
+                os.remove(p)
+            except OSError:
+                pass
+        try:
+            os.remove(list_file)
+        except OSError:
+            pass
+
         status.output_id = output_id
         status.filename = _safe_filename(req.output_name)
         status.size = os.path.getsize(final_path)
@@ -241,6 +254,9 @@ def _run_build(build_id: str, req: RankingBuildRequest):
     except Exception as e:
         status.status = "error"
         status.error = str(e)
+        # Nothing in a failed build is reachable from `_outputs`, so there's
+        # no reason to keep its partial files on disk.
+        shutil.rmtree(out_dir, ignore_errors=True)
 
 
 @router.post("/build", response_model=RankingBuildStatus)
