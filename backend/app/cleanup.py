@@ -2,6 +2,7 @@ import asyncio, os, shutil, time
 
 from app.routers.download import CLIPS_DIR, jobs
 from app.routers.ranking import builds
+from app.routers.edit import _outputs
 
 # How long a downloaded clip / ranking build is kept on disk before it's
 # swept, and how often the sweep runs. Clips are meant to be a working area
@@ -19,9 +20,19 @@ def _is_stale(path: str, max_age_seconds: float) -> bool:
         return False
 
 
+def _prune_outputs_under(path: str):
+    """Drop any _outputs entries pointing inside a directory we just
+    deleted, so a stale download_id/output_id can't outlive its file."""
+    stale = [oid for oid, p in _outputs.items() if p.startswith(path + os.sep)]
+    for oid in stale:
+        _outputs.pop(oid, None)
+
+
 def cleanup_old_clips(retention_hours: float = RETENTION_HOURS):
     """Delete downloaded-clip workspaces and ranking-build directories older
-    than `retention_hours`, skipping anything still actively in progress."""
+    than `retention_hours`, skipping anything still actively in progress.
+    Also prunes the matching in-memory bookkeeping (`jobs`, `builds`,
+    `_outputs`) so it can't grow unbounded or point at deleted files."""
     if not os.path.isdir(CLIPS_DIR):
         return
     max_age = retention_hours * 3600
@@ -39,6 +50,8 @@ def cleanup_old_clips(retention_hours: float = RETENTION_HOURS):
                     continue  # still being built — never sweep mid-build
                 if _is_stale(build_path, max_age):
                     shutil.rmtree(build_path, ignore_errors=True)
+                    _prune_outputs_under(build_path)
+                    builds.pop(build_id, None)
             continue
 
         job_id = name
@@ -47,6 +60,8 @@ def cleanup_old_clips(retention_hours: float = RETENTION_HOURS):
             continue  # still downloading — never sweep mid-download
         if _is_stale(path, max_age):
             shutil.rmtree(path, ignore_errors=True)
+            _prune_outputs_under(path)
+            jobs.pop(job_id, None)
 
 
 async def run_periodic_cleanup():
