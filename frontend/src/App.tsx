@@ -6,6 +6,7 @@ import SettingsModal from './components/SettingsModal'
 import HelpModal from './components/HelpModal'
 import RankingBuilder from './components/RankingBuilder'
 import SplitScreenBuilder from './components/SplitScreenBuilder'
+import CommentaryBuilder from './components/CommentaryBuilder'
 
 const MAX_HISTORY = 10
 
@@ -697,6 +698,9 @@ export default function App() {
               ) : projects.find(p => p.id === activeProjectId)?.template === 'split_screen' ? (
                 <SplitScreenBuilder projectClips={projectClips} onRemove={removeFromProject} projectId={activeProjectId}
                   projectName={projects.find(p => p.id === activeProjectId)?.name ?? 'split_screen_video'} />
+              ) : projects.find(p => p.id === activeProjectId)?.template === 'commentary' ? (
+                <CommentaryBuilder projectClips={projectClips} onRemove={removeFromProject} projectId={activeProjectId}
+                  projectName={projects.find(p => p.id === activeProjectId)?.name ?? 'commentary_video'} />
               ) : projectClips.length === 0 ? (
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '80px 0', color: 'var(--muted)', textAlign: 'center', gap: 8 }}>
                   <div style={{ fontSize: 36 }}>📁</div>

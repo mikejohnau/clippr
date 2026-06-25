@@ -3,6 +3,7 @@ import asyncio, os, shutil, time
 from app.routers.download import CLIPS_DIR, jobs
 from app.routers.ranking import builds as ranking_builds
 from app.routers.splitscreen import builds as splitscreen_builds
+from app.routers.commentary import builds as commentary_builds
 from app.routers.edit import _outputs
 
 # Each template that renders into its own "_<name>/<build_id>/" subdirectory,
@@ -10,6 +11,7 @@ from app.routers.edit import _outputs
 BUILD_DIRS = {
     "_ranking": ranking_builds,
     "_splitscreen": splitscreen_builds,
+    "_commentary": commentary_builds,
 }
 
 # How long a downloaded clip / ranking build is kept on disk before it's
