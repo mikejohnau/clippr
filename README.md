@@ -12,6 +12,7 @@ A self-hostable viral clip discovery and editing tool. Find trending videos acro
 - **Rising Channels** — momentum-scored channel discovery (recent views ÷ subscribers)
 - **Google Trends** — daily trending topics by region, with related news articles and one-click YouTube search
 - **TikTok & Instagram import** — paste a URL to pull in any clip from those platforms
+- **TikTok & Instagram topic search** (optional, requires an [Apify](https://apify.com) account) — type a topic and click the TikTok/Instagram icon to pull in real search results from those platforms, sorted by views/likes. Neither platform has a public keyword-search API, so this runs through paid third-party Apify actors (`clockworks/tiktok-scraper` for TikTok keyword search, `apify/instagram-hashtag-scraper` for Instagram hashtag search) — each search costs a small amount on your Apify account. Without `APIFY_API_TOKEN` set, clicking either button shows a clear "not configured" error and the rest of the app works exactly as before.
 
 ### Organisation
 - **Projects** — save clips into named projects backed by SQLite; rename and delete projects freely
@@ -85,6 +86,9 @@ Create `backend/.env` (or export directly):
 
 ```
 YOUTUBE_API_KEY=your_key_here
+
+# Optional — only needed for the TikTok/Instagram topic-search buttons
+APIFY_API_TOKEN=your_apify_token_here
 ```
 
 Start the server:
@@ -126,9 +130,11 @@ clippr/
 │       ├── cleanup.py           # Periodic sweep of /clips (clips, uploaded images, build temp dirs)
 │       ├── models/              # Pydantic models (Clip, etc.)
 │       ├── services/
-│       │   └── youtube.py       # YouTube API + trending helpers
+│       │   ├── youtube.py       # YouTube API + trending helpers
+│       │   └── apify.py         # TikTok/Instagram topic search via Apify actors
 │       └── routers/
 │           ├── search.py        # YouTube search
+│           ├── social.py        # TikTok/Instagram topic search (Apify-backed)
 │           ├── trending.py      # YouTube trending + Google Trends RSS
 │           ├── channels.py      # Rising channels + channel info
 │           ├── download.py      # yt-dlp download jobs
@@ -170,4 +176,5 @@ clippr/
 - **Instagram downloads**: Instagram frequently blocks anonymous yt-dlp requests with a login wall. Upload a cookies.txt file (exported from a logged-in browser session, e.g. with the "Get cookies.txt LOCALLY" extension) via the ⚙ Settings panel to fix this — Clippr never sees your password, only the exported session cookies.
 - **Google Trends**: the RSS feed only provides daily data; the hours/category parameters on the RSS endpoint have no effect.
 - **Automatic cleanup**: `/clips` is a working area, not permanent storage — downloaded source clips, uploaded story images, and template build temp directories are swept automatically on startup and every 6 hours, with a 24-hour retention. Anything still actively downloading or building is never touched. Download the final result you want to keep before it ages out.
-- **Self-hosted**: no accounts, no cloud dependencies beyond the YouTube API key. Everything runs locally.
+- **TikTok/Instagram topic search costs money**: unlike everything else in Clippr, each search through the TikTok/Instagram icon buttons calls a paid Apify actor and costs a small amount on your Apify account (a few cents per search at typical result counts). It's the only outbound paid API call Clippr makes.
+- **Self-hosted**: no accounts, no cloud dependencies beyond the YouTube API key (and, optionally, Apify for TikTok/Instagram topic search). Everything else runs locally.

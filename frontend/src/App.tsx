@@ -73,6 +73,7 @@ export default function App() {
   const [error, setError] = useState('')
   const [nextPageToken, setNextPageToken] = useState('')
   const [currentTopic, setCurrentTopic] = useState('')
+  const [socialSearching, setSocialSearching] = useState<'tiktok' | 'instagram' | null>(null)
 
   // Filters
   const [dateFilter, setDateFilter] = useState('')
@@ -325,6 +326,26 @@ export default function App() {
       setError(err.message || 'Something went wrong')
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function searchSocial(platform: 'tiktok' | 'instagram') {
+    const t = topic.trim()
+    if (!t || socialSearching) return
+    nav('search')
+    setSocialSearching(platform)
+    setError('')
+    try {
+      const res = await fetch(`/api/social/?topic=${encodeURIComponent(t)}&platform=${platform}&max_items=15`)
+      if (!res.ok) throw new Error((await res.json()).detail || `${platform} search failed`)
+      const data = await res.json()
+      setCurrentTopic(t)
+      addToHistory(t)
+      setClips(prev => [...data.clips, ...prev])
+    } catch (err: any) {
+      setError(err.message || `${platform} search failed`)
+    } finally {
+      setSocialSearching(null)
     }
   }
 
@@ -649,17 +670,22 @@ export default function App() {
 
             <div style={{ width: 1, height: 28, background: 'var(--border)', flexShrink: 0 }} />
 
-            <button type="button" title="Search on TikTok"
-              onClick={() => window.open(`https://www.tiktok.com/search?q=${encodeURIComponent(topic)}`, '_blank')}
-              style={{ background: 'var(--surface2)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', width: 40, height: 40, padding: 0, borderRadius: 8, flexShrink: 0 }}>
-              <TikTokIcon size={20} />
+            <button type="button" title={topic.trim() ? `Find viral TikToks about "${topic.trim()}"` : 'Type a topic above first'}
+              onClick={() => searchSocial('tiktok')} disabled={!topic.trim() || !!socialSearching}
+              style={{ background: 'var(--surface2)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', width: 40, height: 40, padding: 0, borderRadius: 8, flexShrink: 0, opacity: !topic.trim() ? 0.5 : 1 }}>
+              {socialSearching === 'tiktok' ? <span style={{ fontSize: 11, color: 'var(--muted)' }}>…</span> : <TikTokIcon size={20} />}
             </button>
-            <button type="button" title="Search on Instagram"
-              onClick={() => window.open(`https://www.instagram.com/explore/search/keyword/?q=${encodeURIComponent(topic)}`, '_blank')}
-              style={{ background: 'var(--surface2)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', width: 40, height: 40, padding: 0, borderRadius: 8, flexShrink: 0 }}>
-              <InstagramIcon size={20} />
+            <button type="button" title={topic.trim() ? `Find viral Reels about "${topic.trim()}"` : 'Type a topic above first'}
+              onClick={() => searchSocial('instagram')} disabled={!topic.trim() || !!socialSearching}
+              style={{ background: 'var(--surface2)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', width: 40, height: 40, padding: 0, borderRadius: 8, flexShrink: 0, opacity: !topic.trim() ? 0.5 : 1 }}>
+              {socialSearching === 'instagram' ? <span style={{ fontSize: 11, color: 'var(--muted)' }}>…</span> : <InstagramIcon size={20} />}
             </button>
           </div>
+          {socialSearching && (
+            <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 6, paddingLeft: 92 }}>
+              Searching {socialSearching === 'tiktok' ? 'TikTok' : 'Instagram'} for "{topic.trim()}"… this can take up to a minute.
+            </div>
+          )}
 
           {/* Search history chips */}
           {searchHistory.length > 0 && (

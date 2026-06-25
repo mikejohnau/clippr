@@ -8,7 +8,7 @@ import asyncio
 
 from app.db import init_db
 from app.cleanup import run_periodic_cleanup
-from app.routers import search, download, meta, trending, channels
+from app.routers import search, download, meta, trending, channels, social
 from app.routers import projects, downloads_history, edit, settings, ranking, splitscreen, commentary, image_story, text_story
 
 app = FastAPI(title="Clippr")
@@ -40,6 +40,7 @@ async def img_proxy(url: str = Query(...)):
         return Response(status_code=404)
 
 app.include_router(search.router, prefix="/api/search")
+app.include_router(social.router, prefix="/api/social")
 app.include_router(download.router, prefix="/api/download")
 app.include_router(meta.router, prefix="/api/meta")
 app.include_router(trending.router, prefix="/api/trending")
