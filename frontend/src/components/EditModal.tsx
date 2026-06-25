@@ -1,5 +1,6 @@
 import { useRef, useState, useEffect } from 'react'
 import type { CSSProperties } from 'react'
+import { TitleOverlayEditor, CtaEditor } from './OverlayEditors'
 
 interface Segment {
   start: number
@@ -11,7 +12,20 @@ interface Segment {
   font_family: string
   font_size: number
   font_color: string
+  bg_color: string
+  stroke_width: number
+  stroke_color: string
   aspect_ratio: string
+  cta_text: string
+  cta_duration: number
+  cta_moments: string[]
+  cta_position: string
+  cta_font_family: string
+  cta_font_size: number
+  cta_font_color: string
+  cta_bg_color: string
+  cta_animation: string
+  cta_transition: number
 }
 
 const TEMPLATES = [
@@ -87,11 +101,27 @@ export default function EditModal({ jobId, title, onClose }: {
   const [end, setEnd] = useState(0)
   const [mute, setMute] = useState(false)
   const [label, setLabel] = useState('')
-  const [overlayTitle, setOverlayTitle] = useState('')
-  const [template, setTemplate] = useState('none')
-  const [fontFamily, setFontFamily] = useState('sans-bold')
-  const [fontSize, setFontSize] = useState(0)   // 0 = template default
-  const [fontColor, setFontColor] = useState('#ffffff')
+  const [titleText, setTitleText] = useState('')
+  const [titleTemplate, setTitleTemplate] = useState('none')
+  const [titleFontFamily, setTitleFontFamily] = useState('sans-bold')
+  const [titleFontSize, setTitleFontSize] = useState(0)   // 0 = template default
+  const [titleFontColor, setTitleFontColor] = useState('#ffffff')
+  const [titleBgColor, setTitleBgColor] = useState('#000000')
+  const [titleBgEnabled, setTitleBgEnabled] = useState(false)
+  const [titleStrokeWidth, setTitleStrokeWidth] = useState(-1)   // -1 = template default
+  const [titleStrokeColor, setTitleStrokeColor] = useState('#000000')
+  const [titleStrokeColorEnabled, setTitleStrokeColorEnabled] = useState(false)
+  const [ctaText, setCtaText] = useState('')
+  const [ctaDuration, setCtaDuration] = useState(3)
+  const [ctaMoments, setCtaMoments] = useState<string[]>(['end'])
+  const [ctaPosition, setCtaPosition] = useState('bottom-center')
+  const [ctaAnimation, setCtaAnimation] = useState('fade')
+  const [ctaTransition, setCtaTransition] = useState(0.5)
+  const [ctaFontFamily, setCtaFontFamily] = useState('sans-bold')
+  const [ctaFontSize, setCtaFontSize] = useState(0)
+  const [ctaFontColor, setCtaFontColor] = useState('#ffffff')
+  const [ctaBgColor, setCtaBgColor] = useState('#000000')
+  const [ctaBgEnabled, setCtaBgEnabled] = useState(true)
   const [aspectRatio, setAspectRatio] = useState('original')
   const [startInput, setStartInput] = useState('0:00.0')
   const [endInput, setEndInput] = useState('0:00.0')
@@ -150,20 +180,53 @@ export default function EditModal({ jobId, title, onClose }: {
     setSegments(prev => [...prev, {
       start, end, mute,
       label: label || `clip ${prev.length + 1}`,
-      title: overlayTitle,
-      template,
-      font_family: fontFamily,
-      font_size: fontSize,
-      font_color: fontColor,
+      title: titleText,
+      template: titleTemplate,
+      font_family: titleFontFamily,
+      font_size: titleFontSize,
+      font_color: titleFontColor,
+      bg_color: titleBgEnabled ? titleBgColor : '',
+      stroke_width: titleStrokeWidth,
+      stroke_color: titleStrokeColorEnabled ? titleStrokeColor : '',
       aspect_ratio: aspectRatio,
+      cta_text: ctaText,
+      cta_duration: ctaDuration,
+      cta_moments: ctaMoments,
+      cta_position: ctaPosition,
+      cta_font_family: ctaFontFamily,
+      cta_font_size: ctaFontSize,
+      cta_font_color: ctaFontColor,
+      cta_bg_color: ctaBgEnabled ? ctaBgColor : '',
+      cta_animation: ctaAnimation,
+      cta_transition: ctaTransition,
     }])
     setLabel('')
-    setOverlayTitle('')
-    setTemplate('none')
-    setFontFamily('sans-bold')
-    setFontSize(0)
-    setFontColor('#ffffff')
+    setTitleText('')
+    setTitleTemplate('none')
+    setTitleFontFamily('sans-bold')
+    setTitleFontSize(0)
+    setTitleFontColor('#ffffff')
+    setTitleBgColor('#000000')
+    setTitleBgEnabled(false)
+    setTitleStrokeWidth(-1)
+    setTitleStrokeColor('#000000')
+    setTitleStrokeColorEnabled(false)
     setAspectRatio('original')
+    setCtaText('')
+    setCtaDuration(3)
+    setCtaMoments(['end'])
+    setCtaPosition('bottom-center')
+    setCtaAnimation('fade')
+    setCtaTransition(0.5)
+    setCtaFontFamily('sans-bold')
+    setCtaFontSize(0)
+    setCtaFontColor('#ffffff')
+    setCtaBgColor('#000000')
+    setCtaBgEnabled(true)
+  }
+
+  function toggleCtaMoment(id: string) {
+    setCtaMoments(prev => prev.includes(id) ? prev.filter(m => m !== id) : [...prev, id])
   }
 
   function removeSegment(i: number) {
@@ -279,37 +342,43 @@ export default function EditModal({ jobId, title, onClose }: {
               {/* Rough overlay preview — approximates the burned-in ffmpeg template.
                   Scales the chosen font size down from "pixels on the real video"
                   to "pixels in this ~340px-tall preview player". */}
-              {overlayTitle && template !== 'none' && (() => {
-                const font = FONTS.find(f => f.id === fontFamily) || FONTS[0]
-                const realSize = fontSize || TEMPLATE_DEFAULT_SIZE[template] || 42
+              {titleText && titleTemplate !== 'none' && (() => {
+                const font = FONTS.find(f => f.id === titleFontFamily) || FONTS[0]
+                const realSize = titleFontSize || TEMPLATE_DEFAULT_SIZE[titleTemplate] || 42
                 const previewScale = videoRef.current?.videoHeight
                   ? (videoRef.current.clientHeight / videoRef.current.videoHeight)
                   : 0.4
                 const previewSize = Math.max(10, Math.round(realSize * previewScale))
                 const textStyle: CSSProperties = {
-                  color: fontColor,
+                  color: titleFontColor,
                   fontFamily: font.css,
                   fontWeight: font.weight,
                   fontSize: previewSize,
+                  WebkitTextStroke: titleStrokeWidth !== 0 ? `1px ${titleStrokeColorEnabled ? titleStrokeColor : '#000'}` : undefined,
                 }
-                if (template === 'bold-bottom') {
+                const barColor = titleBgEnabled ? titleBgColor : undefined
+                if (titleTemplate === 'bold-bottom') {
                   return (
                     <div style={{ position: 'absolute', left: 0, right: 0, bottom: 24, textAlign: 'center', pointerEvents: 'none' }}>
-                      <span style={{ ...textStyle, textShadow: '0 0 6px #000, 0 0 6px #000, 0 0 6px #000' }}>{overlayTitle}</span>
+                      <span style={{
+                        ...textStyle,
+                        textShadow: '0 0 6px #000, 0 0 6px #000, 0 0 6px #000',
+                        background: barColor, padding: barColor ? '2px 10px' : undefined, borderRadius: barColor ? 4 : undefined,
+                      }}>{titleText}</span>
                     </div>
                   )
                 }
-                if (template === 'lower-third') {
+                if (titleTemplate === 'lower-third') {
                   return (
-                    <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: '17%', background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', paddingLeft: 16, pointerEvents: 'none' }}>
-                      <span style={textStyle}>{overlayTitle}</span>
+                    <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: '17%', background: barColor || 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', paddingLeft: 16, pointerEvents: 'none' }}>
+                      <span style={textStyle}>{titleText}</span>
                     </div>
                   )
                 }
-                if (template === 'top-banner') {
+                if (titleTemplate === 'top-banner') {
                   return (
-                    <div style={{ position: 'absolute', left: 0, right: 0, top: 0, height: 32, background: 'rgba(0,0,0,0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
-                      <span style={textStyle}>{overlayTitle}</span>
+                    <div style={{ position: 'absolute', left: 0, right: 0, top: 0, height: 32, background: barColor || 'rgba(0,0,0,0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
+                      <span style={textStyle}>{titleText}</span>
                     </div>
                   )
                 }
@@ -382,40 +451,41 @@ export default function EditModal({ jobId, title, onClose }: {
 
             {/* Overlay template */}
             <div style={{ background: 'var(--surface2)', borderRadius: 10, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Title overlay (optional)</div>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <select value={template} onChange={e => setTemplate(e.target.value)}
-                  style={{ height: 34, fontSize: 12, borderRadius: 7, flexShrink: 0, width: 160 }}>
-                  {TEMPLATES.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                </select>
-                <input value={overlayTitle} onChange={e => setOverlayTitle(e.target.value)}
-                  disabled={template === 'none'}
-                  placeholder="Overlay text…"
-                  style={{ flex: 1, height: 34, fontSize: 13 }} />
-              </div>
-
-              {template !== 'none' && (
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                  <select value={fontFamily} onChange={e => setFontFamily(e.target.value)}
-                    style={{ height: 32, fontSize: 12, borderRadius: 7, width: 130, flexShrink: 0 }}>
-                    {FONTS.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
-                  </select>
-
-                  <input type="number" min={10} max={120}
-                    value={fontSize || TEMPLATE_DEFAULT_SIZE[template] || 42}
-                    onChange={e => setFontSize(parseInt(e.target.value, 10) || 0)}
-                    title="Font size (px)"
-                    style={{ width: 60, height: 32, fontSize: 12, textAlign: 'center' }} />
-
-                  <input type="color" value={fontColor} onChange={e => setFontColor(e.target.value)}
-                    title="Font color"
-                    style={{ width: 36, height: 32, padding: 2, border: '1px solid var(--border)', borderRadius: 7, background: 'none', cursor: 'pointer' }} />
-
-                  <span style={{ fontSize: 11, color: 'var(--muted)' }}>Font, size, colour</span>
+              <TitleOverlayEditor
+                titleText={titleText} setTitleText={setTitleText}
+                titleTemplate={titleTemplate} setTitleTemplate={setTitleTemplate}
+                titleFontFamily={titleFontFamily} setTitleFontFamily={setTitleFontFamily}
+                titleFontSize={titleFontSize} setTitleFontSize={setTitleFontSize}
+                titleFontColor={titleFontColor} setTitleFontColor={setTitleFontColor}
+                titleBgColor={titleBgColor} setTitleBgColor={setTitleBgColor}
+                titleBgEnabled={titleBgEnabled} setTitleBgEnabled={setTitleBgEnabled}
+                titleStrokeWidth={titleStrokeWidth} setTitleStrokeWidth={setTitleStrokeWidth}
+                titleStrokeColor={titleStrokeColor} setTitleStrokeColor={setTitleStrokeColor}
+                titleStrokeColorEnabled={titleStrokeColorEnabled} setTitleStrokeColorEnabled={setTitleStrokeColorEnabled}
+              />
+              {titleTemplate !== 'none' && (
+                <div style={{ fontSize: 10, color: 'var(--muted)' }}>
+                  Burned in during extraction — this clip will re-encode (slower than copy-only trims).
                 </div>
               )}
+            </div>
 
-              {template !== 'none' && (
+            {/* Call to action */}
+            <div style={{ background: 'var(--surface2)', borderRadius: 10, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <CtaEditor
+                ctaText={ctaText} setCtaText={setCtaText}
+                ctaDuration={ctaDuration} setCtaDuration={setCtaDuration}
+                ctaMoments={ctaMoments} toggleCtaMoment={toggleCtaMoment}
+                ctaPosition={ctaPosition} setCtaPosition={setCtaPosition}
+                ctaAnimation={ctaAnimation} setCtaAnimation={setCtaAnimation}
+                ctaTransition={ctaTransition} setCtaTransition={setCtaTransition}
+                ctaFontFamily={ctaFontFamily} setCtaFontFamily={setCtaFontFamily}
+                ctaFontSize={ctaFontSize} setCtaFontSize={setCtaFontSize}
+                ctaFontColor={ctaFontColor} setCtaFontColor={setCtaFontColor}
+                ctaBgColor={ctaBgColor} setCtaBgColor={setCtaBgColor}
+                ctaBgEnabled={ctaBgEnabled} setCtaBgEnabled={setCtaBgEnabled}
+              />
+              {ctaText.trim() && (
                 <div style={{ fontSize: 10, color: 'var(--muted)' }}>
                   Burned in during extraction — this clip will re-encode (slower than copy-only trims).
                 </div>
@@ -483,6 +553,13 @@ export default function EditModal({ jobId, title, onClose }: {
                         <span style={{ width: 8, height: 8, borderRadius: '50%', background: seg.font_color, border: '1px solid var(--border)', flexShrink: 0 }} />
                         <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {TEMPLATES.find(t => t.id === seg.template)?.name}: "{seg.title}"
+                        </span>
+                      </div>
+                    )}
+                    {seg.cta_text && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 5, color: 'var(--gold)', fontSize: 10, marginTop: 2, overflow: 'hidden' }}>
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          CTA ({seg.cta_moments.join(', ')}): "{seg.cta_text}"
                         </span>
                       </div>
                     )}
