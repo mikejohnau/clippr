@@ -3,8 +3,23 @@ import { useState } from 'react'
 interface Section {
   id: string
   title: string
-  icon: string
+  icon: HelpIconKind
   body: React.ReactNode
+}
+
+// Same monochrome stroke-icon language as App.tsx's NavIcon, so Help doesn't
+// clash with the rest of the UI by using emoji.
+type HelpIconKind = 'discovery' | 'projects' | 'templates' | 'editor' | 'lock' | 'warning' | 'help'
+
+function HelpIcon({ kind, size = 14 }: { kind: HelpIconKind; size?: number }) {
+  const common = { width: size, height: size, viewBox: '0 0 16 16', fill: 'none', stroke: 'currentColor', strokeWidth: 1.6, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const }
+  if (kind === 'help') return <svg {...common}><circle cx="8" cy="8" r="6.3" /><path d="M6.1 6.2c.2-1 1-1.7 2-1.7 1.1 0 2 .8 2 1.8 0 .8-.4 1.2-1.1 1.7-.6.4-.9.7-.9 1.4" /><circle cx="8" cy="11.4" r="0.15" fill="currentColor" /></svg>
+  if (kind === 'discovery') return <svg {...common}><circle cx="7" cy="7" r="5" /><line x1="11" y1="11" x2="14.5" y2="14.5" /></svg>
+  if (kind === 'projects') return <svg {...common}><path d="M1.5 4.5a1 1 0 0 1 1-1h3l1.2 1.6h6.3a1 1 0 0 1 1 1v6.4a1 1 0 0 1-1 1h-10.5a1 1 0 0 1-1-1z" /></svg>
+  if (kind === 'templates') return <svg {...common}><rect x="1.5" y="3" width="13" height="10" rx="1.5" /><path d="M6.5 6l3.5 2-3.5 2z" fill="currentColor" stroke="none" /></svg>
+  if (kind === 'editor') return <svg {...common}><circle cx="4" cy="4" r="2" /><circle cx="4" cy="12" r="2" /><line x1="5.5" y1="5.5" x2="14" y2="14" /><line x1="14" y1="2" x2="5.5" y2="10.5" /></svg>
+  if (kind === 'lock') return <svg {...common}><rect x="3" y="7.5" width="10" height="6.5" rx="1.3" /><path d="M5 7.5V5.2a3 3 0 0 1 6 0v2.3" /></svg>
+  return <svg {...common}><path d="M8 2 1.5 13.5h13z" /><line x1="8" y1="6.2" x2="8" y2="9.6" /><circle cx="8" cy="11.6" r="0.15" fill="currentColor" /></svg>
 }
 
 export default function HelpModal({ onClose, onOpenSettings }: { onClose: () => void; onOpenSettings: () => void }) {
@@ -14,7 +29,7 @@ export default function HelpModal({ onClose, onOpenSettings }: { onClose: () => 
     {
       id: 'discovery',
       title: 'Finding clips',
-      icon: '⌕',
+      icon: 'discovery',
       body: (
         <>
           <p><strong>Search</strong> — type a topic in the YouTube search bar and hit Search. Results are sorted by view count. Use <strong>⚙ Filters</strong> to narrow by date range, duration, or minimum views.</p>
@@ -28,7 +43,7 @@ export default function HelpModal({ onClose, onOpenSettings }: { onClose: () => 
     {
       id: 'projects',
       title: 'Projects & saving',
-      icon: '📁',
+      icon: 'projects',
       body: (
         <>
           <p>Click the <strong>☆ star</strong> on any clip card to save it to a project. Projects live in the sidebar — switch between them, rename, or delete freely.</p>
@@ -40,7 +55,7 @@ export default function HelpModal({ onClose, onOpenSettings }: { onClose: () => 
     {
       id: 'templates',
       title: 'Project templates',
-      icon: '🎬',
+      icon: 'templates',
       body: (
         <>
           <p>When you create a project, pick a <strong>template</strong> to get a purpose-built builder instead of the plain notes list. Each one downloads/prepares its own clips and renders server-side with ffmpeg — just click in, configure, and Build.</p>
@@ -56,7 +71,7 @@ export default function HelpModal({ onClose, onOpenSettings }: { onClose: () => 
     {
       id: 'editor',
       title: 'Editing clips',
-      icon: '✂',
+      icon: 'editor',
       body: (
         <>
           <p>Click <strong>✂ Edit</strong> on any clip — it downloads to the server, then opens the trim editor automatically.</p>
@@ -72,7 +87,7 @@ export default function HelpModal({ onClose, onOpenSettings }: { onClose: () => 
     {
       id: 'instagram',
       title: 'Instagram login required',
-      icon: '🔒',
+      icon: 'lock',
       body: (
         <>
           <p>Instagram blocks anonymous downloads and metadata fetches with errors like <em>"login required"</em> or <em>"rate-limit reached."</em> This is Instagram's bot detection, not a bug in Clippr.</p>
@@ -93,7 +108,7 @@ export default function HelpModal({ onClose, onOpenSettings }: { onClose: () => 
     {
       id: 'errors',
       title: 'Other download errors',
-      icon: '⚠',
+      icon: 'warning',
       body: (
         <>
           <p><strong>Blocked</strong> (TikTok) — TikTok's bot detection rejected the request. Usually transient; try again shortly.</p>
@@ -112,7 +127,7 @@ export default function HelpModal({ onClose, onOpenSettings }: { onClose: () => 
         maxHeight: '85vh', display: 'flex', flexDirection: 'column', boxShadow: '0 20px 60px rgba(0,0,0,0.4)',
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 24px 4px', flexShrink: 0 }}>
-          <div style={{ fontSize: 15, fontWeight: 700 }}>❓ Help</div>
+          <div style={{ fontSize: 15, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}><HelpIcon kind="help" size={16} /> Help</div>
           <button onClick={onClose} style={{ background: 'none', color: 'var(--muted)', fontSize: 18, padding: 2 }}>✕</button>
         </div>
 
@@ -126,7 +141,7 @@ export default function HelpModal({ onClose, onOpenSettings }: { onClose: () => 
                   display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', borderRadius: 0,
                   fontSize: 13, fontWeight: 700, color: 'var(--text)',
                 }}>
-                  <span style={{ fontSize: 14 }}>{s.icon}</span>
+                  <span style={{ display: 'flex', flexShrink: 0, color: 'var(--muted)' }}><HelpIcon kind={s.icon} /></span>
                   <span style={{ flex: 1 }}>{s.title}</span>
                   <span style={{ color: 'var(--muted)', fontSize: 11, transform: isOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }}>▾</span>
                 </button>
