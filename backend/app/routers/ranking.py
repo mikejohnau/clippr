@@ -98,7 +98,7 @@ def _rank_overlay_filter(label: str, font_family: str, font_size: int, font_colo
     pos = POSITIONS.get(position, POSITIONS["top-left"])
     return (
         f"drawtext={font_arg}text='{esc}':fontsize={size}:fontcolor={color}:"
-        f"borderw=5:bordercolor=black:x={pos['x']}:y={pos['y']}"
+        f"borderw=5:bordercolor=black:x='{pos['x']}':y='{pos['y']}'"
     )
 
 

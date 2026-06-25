@@ -237,25 +237,30 @@ def _build_overlay_filter(
     else:
         stroke = ""
 
+    # Quote x/y — unquoted parentheses in a drawtext option value are parsed
+    # inconsistently between a plain -vf chain and a labelled -filter_complex
+    # chain (the latter is stricter and fails with "missing '('" otherwise).
     if template == "bold-bottom":
         box = f":box=1:boxcolor={_ffmpeg_color(bg_color)}:boxborderw=14" if bg_color else ""
         return (
             f"drawtext={font_arg}text='{esc}':fontsize={size}:fontcolor={color}:"
-            f"{stroke}x=(w-text_w)/2:y=h-text_h-70{box}"
+            f"{stroke}x='(w-text_w)/2':y='h-text_h-70'{box}"
         )
     if template == "lower-third":
         bar_color = _ffmpeg_color(bg_color) + "@0.55" if bg_color else "black@0.55"
         return (
+            # drawbox uses iw/ih (input dims); drawtext has no such constants —
+            # it only knows w/h (the frame dims), so its y expression must use h.
             f"drawbox=x=0:y=ih-ih/6:w=iw:h=ih/6:color={bar_color}:t=fill,"
             f"drawtext={font_arg}text='{esc}':fontsize={size}:fontcolor={color}:"
-            f"{stroke}x=40:y=ih-ih/6+(ih/6-text_h)/2"
+            f"{stroke}x='40':y='h-h/6+(h/6-text_h)/2'"
         )
     if template == "top-banner":
         bar_color = _ffmpeg_color(bg_color) + "@0.65" if bg_color else "black@0.65"
         return (
             f"drawbox=x=0:y=0:w=iw:h=90:color={bar_color}:t=fill,"
             f"drawtext={font_arg}text='{esc}':fontsize={size}:fontcolor={color}:"
-            f"{stroke}x=(w-text_w)/2:y=(90-text_h)/2"
+            f"{stroke}x='(w-text_w)/2':y='(90-text_h)/2'"
         )
     return None
 

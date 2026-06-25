@@ -1,8 +1,16 @@
 import asyncio, os, shutil, time
 
 from app.routers.download import CLIPS_DIR, jobs
-from app.routers.ranking import builds
+from app.routers.ranking import builds as ranking_builds
+from app.routers.splitscreen import builds as splitscreen_builds
 from app.routers.edit import _outputs
+
+# Each template that renders into its own "_<name>/<build_id>/" subdirectory,
+# paired with the in-memory status dict that tracks builds still in progress.
+BUILD_DIRS = {
+    "_ranking": ranking_builds,
+    "_splitscreen": splitscreen_builds,
+}
 
 # How long a downloaded clip / ranking build is kept on disk before it's
 # swept, and how often the sweep runs. Clips are meant to be a working area
@@ -42,7 +50,8 @@ def cleanup_old_clips(retention_hours: float = RETENTION_HOURS):
         if not os.path.isdir(path):
             continue
 
-        if name == "_ranking":
+        if name in BUILD_DIRS:
+            builds = BUILD_DIRS[name]
             for build_id in os.listdir(path):
                 build_path = os.path.join(path, build_id)
                 status = builds.get(build_id)

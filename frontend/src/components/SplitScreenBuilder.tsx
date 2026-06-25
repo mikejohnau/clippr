@@ -1,18 +1,15 @@
 import { useEffect, useState } from 'react'
 import { ProjectClip } from '../types'
 import { ClipItemState as ItemState, ClipTrimModal as TrimEditorModal, fmt } from './ClipTrimModal'
-import { FONTS, ASPECT_RATIOS, POSITIONS, TitleOverlayEditor, CtaEditor } from './OverlayEditors'
+import { ASPECT_RATIOS, TitleOverlayEditor, CtaEditor } from './OverlayEditors'
 
 // ── Persistence — remember every field across refreshes, scoped per project ──
 
 interface PersistedState {
   order: number[]
   items: Record<number, ItemState>
+  layout: string
   aspectRatio: string
-  fontFamily: string
-  fontSize: number
-  fontColor: string
-  position: string
   titleText: string
   titleTemplate: string
   titleFontFamily: string
@@ -37,7 +34,7 @@ interface PersistedState {
 }
 
 function storageKey(projectId?: string) {
-  return `clippr_ranking_v1_${projectId || 'default'}`
+  return `clippr_splitscreen_v1_${projectId || 'default'}`
 }
 
 function loadPersisted(projectId?: string): Partial<PersistedState> | null {
@@ -45,7 +42,6 @@ function loadPersisted(projectId?: string): Partial<PersistedState> | null {
     const raw = localStorage.getItem(storageKey(projectId))
     if (!raw) return null
     const parsed = JSON.parse(raw)
-    // never resurrect a stuck "downloading"/error state from a previous session
     if (parsed.items) {
       for (const id of Object.keys(parsed.items)) {
         parsed.items[id].downloading = false
@@ -58,10 +54,14 @@ function loadPersisted(projectId?: string): Partial<PersistedState> | null {
   }
 }
 
+const LAYOUTS = [
+  { id: 'stacked', name: 'Stacked (top / bottom)' },
+  { id: 'side_by_side', name: 'Side by side (left / right)' },
+]
 
 // ── Main builder ─────────────────────────────────────────────────────────────
 
-export default function RankingBuilder({ projectClips, onRemove, projectName, projectId }: {
+export default function SplitScreenBuilder({ projectClips, onRemove, projectName, projectId }: {
   projectClips: ProjectClip[]
   onRemove: (rowId: number) => void
   projectName?: string
@@ -69,15 +69,13 @@ export default function RankingBuilder({ projectClips, onRemove, projectName, pr
 }) {
   const [saved] = useState(() => loadPersisted(projectId))
 
-  // Order of row_ids — defaults to project order, reorderable, synced when clips are added/removed elsewhere
+  // Split-screen only ever uses the first two clips saved to the project —
+  // order[0] is the top/left slot, order[1] is bottom/right.
   const [order, setOrder] = useState<number[]>(saved?.order ?? [])
   const [items, setItems] = useState<Record<number, ItemState>>(saved?.items ?? {})
   const [editingRowId, setEditingRowId] = useState<number | null>(null)
+  const [layout, setLayout] = useState(saved?.layout ?? 'stacked')
   const [aspectRatio, setAspectRatio] = useState(saved?.aspectRatio ?? '9:16')
-  const [fontFamily, setFontFamily] = useState(saved?.fontFamily ?? 'sans-bold')
-  const [fontSize, setFontSize] = useState(saved?.fontSize ?? 90)
-  const [fontColor, setFontColor] = useState(saved?.fontColor ?? '#ffffff')
-  const [position, setPosition] = useState(saved?.position ?? 'top-left')
   const [titleText, setTitleText] = useState(saved?.titleText ?? '')
   const [titleTemplate, setTitleTemplate] = useState(saved?.titleTemplate ?? 'none')
   const [titleFontFamily, setTitleFontFamily] = useState(saved?.titleFontFamily ?? 'sans-bold')
@@ -85,7 +83,7 @@ export default function RankingBuilder({ projectClips, onRemove, projectName, pr
   const [titleFontColor, setTitleFontColor] = useState(saved?.titleFontColor ?? '#ffffff')
   const [titleBgColor, setTitleBgColor] = useState(saved?.titleBgColor ?? '#000000')
   const [titleBgEnabled, setTitleBgEnabled] = useState(saved?.titleBgEnabled ?? false)
-  const [titleStrokeWidth, setTitleStrokeWidth] = useState(saved?.titleStrokeWidth ?? -1)   // -1 = template default
+  const [titleStrokeWidth, setTitleStrokeWidth] = useState(saved?.titleStrokeWidth ?? -1)
   const [titleStrokeColor, setTitleStrokeColor] = useState(saved?.titleStrokeColor ?? '#000000')
   const [titleStrokeColorEnabled, setTitleStrokeColorEnabled] = useState(saved?.titleStrokeColorEnabled ?? false)
   const [ctaText, setCtaText] = useState(saved?.ctaText ?? '')
@@ -105,13 +103,14 @@ export default function RankingBuilder({ projectClips, onRemove, projectName, pr
   const [result, setResult] = useState<{ output_id: string; filename: string } | null>(null)
   const [buildError, setBuildError] = useState('')
 
-  // Keep order/items in sync with whatever clips are actually saved to the project
+  // Keep order/items in sync with whatever clips are actually saved to the
+  // project — but only the first two ever participate in the split screen.
   useEffect(() => {
-    const currentIds = projectClips.map(pc => pc.row_id)
+    const currentIds = projectClips.map(pc => pc.row_id).slice(0, 2)
     setOrder(prev => {
       const kept = prev.filter(id => currentIds.includes(id))
       const added = currentIds.filter(id => !kept.includes(id))
-      return [...kept, ...added]
+      return [...kept, ...added].slice(0, 2)
     })
     setItems(prev => {
       const next: Record<number, ItemState> = {}
@@ -123,10 +122,10 @@ export default function RankingBuilder({ projectClips, onRemove, projectName, pr
   }, [projectClips])
 
   // Persist every field to localStorage (per project) so a refresh doesn't
-  // lose trim points, labels, or any of the title/CTA styling.
+  // lose trim points or any of the layout/title/CTA styling.
   useEffect(() => {
     const state: PersistedState = {
-      order, items, aspectRatio, fontFamily, fontSize, fontColor, position,
+      order, items, layout, aspectRatio,
       titleText, titleTemplate, titleFontFamily, titleFontSize, titleFontColor,
       titleBgColor, titleBgEnabled, titleStrokeWidth, titleStrokeColor, titleStrokeColorEnabled,
       ctaText, ctaDuration, ctaMoments, ctaPosition, ctaAnimation, ctaTransition,
@@ -138,7 +137,7 @@ export default function RankingBuilder({ projectClips, onRemove, projectName, pr
       // localStorage can throw if full/unavailable (private browsing, quota) — non-critical, just skip
     }
   }, [
-    projectId, order, items, aspectRatio, fontFamily, fontSize, fontColor, position,
+    projectId, order, items, layout, aspectRatio,
     titleText, titleTemplate, titleFontFamily, titleFontSize, titleFontColor,
     titleBgColor, titleBgEnabled, titleStrokeWidth, titleStrokeColor, titleStrokeColorEnabled,
     ctaText, ctaDuration, ctaMoments, ctaPosition, ctaAnimation, ctaTransition,
@@ -174,15 +173,8 @@ export default function RankingBuilder({ projectClips, onRemove, projectName, pr
     }
   }
 
-  function move(rowId: number, dir: -1 | 1) {
-    setOrder(prev => {
-      const i = prev.indexOf(rowId)
-      const j = i + dir
-      if (i < 0 || j < 0 || j >= prev.length) return prev
-      const next = [...prev]
-      ;[next[i], next[j]] = [next[j], next[i]]
-      return next
-    })
+  function swap() {
+    setOrder(prev => prev.length === 2 ? [prev[1], prev[0]] : prev)
   }
 
   function toggleCtaMoment(id: string) {
@@ -194,7 +186,7 @@ export default function RankingBuilder({ projectClips, onRemove, projectName, pr
     const it = items[pc.row_id]
     return it?.jobId && it.end > it.start
   }).length
-  const canBuild = orderedClips.length >= 2 && readyCount === orderedClips.length
+  const canBuild = orderedClips.length === 2 && readyCount === 2
 
   async function build() {
     setBuilding(true)
@@ -203,19 +195,15 @@ export default function RankingBuilder({ projectClips, onRemove, projectName, pr
     setBuildStep('Queuing build…')
     setResult(null)
     try {
-      const n = orderedClips.length
-      const reqItems = orderedClips.map((pc, i) => {
+      const reqItems = orderedClips.map(pc => {
         const it = items[pc.row_id]
-        return {
-          job_id: it.jobId, start: it.start, end: it.end, mute: it.mute,
-          rank: n - i, label: it.label, font_family: fontFamily, font_size: fontSize, font_color: fontColor, position,
-        }
+        return { job_id: it.jobId, start: it.start, end: it.end, mute: it.mute }
       })
-      const res = await fetch('/api/ranking/build', {
+      const res = await fetch('/api/splitscreen/build', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          items: reqItems, aspect_ratio: aspectRatio,
-          output_name: projectName || 'ranking_video',
+          items: reqItems, layout, aspect_ratio: aspectRatio,
+          output_name: projectName || 'split_screen_video',
           title: titleText, title_template: titleTemplate,
           title_font_family: titleFontFamily, title_font_size: titleFontSize, title_font_color: titleFontColor,
           title_bg_color: titleBgEnabled ? titleBgColor : '',
@@ -232,7 +220,7 @@ export default function RankingBuilder({ projectClips, onRemove, projectName, pr
 
       const status: any = await new Promise((resolve, reject) => {
         const iv = setInterval(async () => {
-          const s = await fetch(`/api/ranking/build/${build_id}`).then(r => r.json())
+          const s = await fetch(`/api/splitscreen/build/${build_id}`).then(r => r.json())
           setBuildProgress(s.progress || 0)
           setBuildStep(s.step || '')
           if (s.status === 'done') { clearInterval(iv); resolve(s) }
@@ -257,6 +245,8 @@ export default function RankingBuilder({ projectClips, onRemove, projectName, pr
 
   const editingClip = editingRowId != null ? orderedClips.find(pc => pc.row_id === editingRowId) : null
   const editingItem = editingRowId != null ? items[editingRowId] : null
+  const slotNames = layout === 'side_by_side' ? ['Left', 'Right'] : ['Top', 'Bottom']
+  const extraClips = projectClips.slice(2)
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -267,21 +257,20 @@ export default function RankingBuilder({ projectClips, onRemove, projectName, pr
           item={editingItem}
           onUpdate={patch => update(editingRowId!, patch)}
           onClose={() => setEditingRowId(null)}
-          labelPlaceholder="Rank label (optional, defaults to the clip's position number)…"
         />
       )}
 
       <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: 16, display: 'flex', flexDirection: 'column', gap: 4 }}>
-        <div style={{ fontSize: 14, fontWeight: 700 }}>Ranking video builder</div>
+        <div style={{ fontSize: 14, fontWeight: 700 }}>Split-screen video builder</div>
         <div style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.5 }}>
-          Every clip saved to this project is part of the build, in the order below. Reorder, prepare (download), then edit each one to trim, mute, and label it.
+          Uses the first two clips saved to this project — one per half of the frame. Prepare and trim each one, then build.
         </div>
       </div>
 
       {orderedClips.length === 0 ? (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '60px 0', color: 'var(--muted)', textAlign: 'center', gap: 8 }}>
           <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)' }}>No clips in this project yet</div>
-          <div style={{ fontSize: 13 }}>Click ★ on any clip to save it here — it'll show up as a ranked entry below.</div>
+          <div style={{ fontSize: 13 }}>Click ★ on any clip to save it here — the first two will become the split-screen halves.</div>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -292,12 +281,11 @@ export default function RankingBuilder({ projectClips, onRemove, projectName, pr
             return (
               <div key={pc.row_id} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden' }}>
                 <div style={{ display: 'flex', gap: 12, padding: '12px 16px', alignItems: 'flex-start' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, flexShrink: 0, paddingTop: 2 }}>
-                    <span style={{ fontWeight: 800, fontSize: 16, color: 'var(--accent)' }}>#{orderedClips.length - i}</span>
-                    <div style={{ display: 'flex', gap: 2 }}>
-                      <button onClick={() => move(pc.row_id, -1)} disabled={i === 0} style={{ background: 'none', color: 'var(--muted)', fontSize: 13, padding: '0 4px' }}>↑</button>
-                      <button onClick={() => move(pc.row_id, 1)} disabled={i === orderedClips.length - 1} style={{ background: 'none', color: 'var(--muted)', fontSize: 13, padding: '0 4px' }}>↓</button>
-                    </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, flexShrink: 0, paddingTop: 2, minWidth: 56 }}>
+                    <span style={{ fontWeight: 800, fontSize: 13, color: 'var(--accent)' }}>{slotNames[i]}</span>
+                    {orderedClips.length === 2 && (
+                      <button onClick={swap} title="Swap positions" style={{ background: 'none', color: 'var(--muted)', fontSize: 13, padding: '0 4px' }}>⇄</button>
+                    )}
                   </div>
 
                   {pc.clip.thumbnail && (
@@ -334,7 +322,6 @@ export default function RankingBuilder({ projectClips, onRemove, projectName, pr
                         <span style={{ fontSize: 12, color: hasTrim ? 'var(--muted)' : 'var(--error)' }}>
                           {hasTrim ? `${fmt(it.start)} → ${fmt(it.end)} (${fmt(it.end - it.start)})` : 'No trim range set yet'}
                           {it.mute && ' • muted'}
-                          {it.label && ` • "${it.label}"`}
                         </span>
                       </div>
                     )}
@@ -343,6 +330,12 @@ export default function RankingBuilder({ projectClips, onRemove, projectName, pr
               </div>
             )
           })}
+
+          {extraClips.length > 0 && (
+            <div style={{ fontSize: 12, color: 'var(--muted)' }}>
+              {extraClips.length} extra clip{extraClips.length !== 1 ? 's' : ''} saved to this project won't be used by the split screen — remove a clip above to bring one of them in instead.
+            </div>
+          )}
         </div>
       )}
 
@@ -352,39 +345,16 @@ export default function RankingBuilder({ projectClips, onRemove, projectName, pr
             <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>Output</div>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
               <label style={{ fontSize: 11, color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: 5 }}>
+                Layout
+                <select value={layout} onChange={e => setLayout(e.target.value)} style={{ height: 32, fontSize: 12, width: 'auto' }}>
+                  {LAYOUTS.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+                </select>
+              </label>
+              <label style={{ fontSize: 11, color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: 5 }}>
                 Aspect ratio
                 <select value={aspectRatio} onChange={e => setAspectRatio(e.target.value)} style={{ height: 32, fontSize: 12, width: 'auto' }}>
                   {ASPECT_RATIOS.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
                 </select>
-              </label>
-            </div>
-          </div>
-
-          <div>
-            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>Rank label overlay (the "#N" badge burned into each clip)</div>
-            <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-              <label style={{ fontSize: 11, color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: 5 }}>
-                Position
-                <select value={position} onChange={e => setPosition(e.target.value)} style={{ height: 32, fontSize: 12, width: 'auto' }}>
-                  {POSITIONS.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                </select>
-              </label>
-              <label style={{ fontSize: 11, color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: 5 }}>
-                Font
-                <select value={fontFamily} onChange={e => setFontFamily(e.target.value)} style={{ height: 32, fontSize: 12, width: 'auto' }}>
-                  {FONTS.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
-                </select>
-              </label>
-              <label style={{ fontSize: 11, color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: 5 }}>
-                Size
-                <input type="number" min={20} max={200} step={5} value={fontSize}
-                  onChange={e => setFontSize(parseInt(e.target.value, 10) || 90)}
-                  style={{ width: 56, height: 32, fontSize: 12 }} />
-              </label>
-              <label style={{ fontSize: 11, color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: 5 }}>
-                Color
-                <input type="color" value={fontColor} onChange={e => setFontColor(e.target.value)}
-                  style={{ width: 38, height: 32, padding: 2, border: '1px solid var(--border)', borderRadius: 7, background: 'none' }} />
               </label>
             </div>
           </div>
@@ -416,18 +386,17 @@ export default function RankingBuilder({ projectClips, onRemove, projectName, pr
             ctaBgEnabled={ctaBgEnabled} setCtaBgEnabled={setCtaBgEnabled}
           />
 
-
           <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', borderTop: '1px solid var(--border)', paddingTop: 12 }}>
             <button onClick={build} disabled={!canBuild || building} style={{
               background: canBuild && !building ? 'var(--accent)' : 'var(--surface2)',
               color: canBuild && !building ? '#fff' : 'var(--muted)',
               fontWeight: 700, fontSize: 13, padding: '0 18px', height: 34, borderRadius: 8,
             }}>
-              {building ? 'Building…' : `Build ranking video (${orderedClips.length})`}
+              {building ? 'Building…' : 'Build split-screen video'}
             </button>
             {!canBuild && !building && (
               <span style={{ fontSize: 11, color: 'var(--muted)' }}>
-                {orderedClips.length < 2 ? 'Add at least 2 clips to this project.' : 'Edit every clip above (with a valid trim range) to enable building.'}
+                {orderedClips.length < 2 ? 'Add at least 2 clips to this project.' : 'Edit both clips above (with a valid trim range) to enable building.'}
               </span>
             )}
           </div>
@@ -449,7 +418,7 @@ export default function RankingBuilder({ projectClips, onRemove, projectName, pr
           {result && (
             <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, padding: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--success)', fontSize: 13, fontWeight: 600 }}>✓ Ranking video built</span>
+                <span style={{ color: 'var(--success)', fontSize: 13, fontWeight: 600 }}>✓ Split-screen video built</span>
                 <button onClick={downloadResult} style={{ background: 'var(--success)', color: '#fff', fontWeight: 700, fontSize: 12, padding: '6px 14px', borderRadius: 7 }}>
                   ↓ Download
                 </button>
