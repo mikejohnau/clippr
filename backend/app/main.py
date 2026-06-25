@@ -9,7 +9,7 @@ import asyncio
 from app.db import init_db
 from app.cleanup import run_periodic_cleanup
 from app.routers import search, download, meta, trending, channels
-from app.routers import projects, downloads_history, edit, settings, ranking, splitscreen, commentary
+from app.routers import projects, downloads_history, edit, settings, ranking, splitscreen, commentary, image_story, text_story
 
 app = FastAPI(title="Clippr")
 
@@ -51,6 +51,8 @@ app.include_router(settings.router, prefix="/api/settings")
 app.include_router(ranking.router, prefix="/api/ranking")
 app.include_router(splitscreen.router, prefix="/api/splitscreen")
 app.include_router(commentary.router, prefix="/api/commentary")
+app.include_router(image_story.router, prefix="/api/imagestory")
+app.include_router(text_story.router, prefix="/api/textstory")
 
 CLIPS_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "clips")
 CLIPS_DIR = os.path.abspath(CLIPS_DIR)

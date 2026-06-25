@@ -4,6 +4,8 @@ from app.routers.download import CLIPS_DIR, jobs
 from app.routers.ranking import builds as ranking_builds
 from app.routers.splitscreen import builds as splitscreen_builds
 from app.routers.commentary import builds as commentary_builds
+from app.routers.image_story import builds as image_story_builds, _images
+from app.routers.text_story import builds as text_story_builds
 from app.routers.edit import _outputs
 
 # Each template that renders into its own "_<name>/<build_id>/" subdirectory,
@@ -12,6 +14,8 @@ BUILD_DIRS = {
     "_ranking": ranking_builds,
     "_splitscreen": splitscreen_builds,
     "_commentary": commentary_builds,
+    "_imagestory": image_story_builds,
+    "_textstory": text_story_builds,
 }
 
 # How long a downloaded clip / ranking build is kept on disk before it's
@@ -50,6 +54,21 @@ def cleanup_old_clips(retention_hours: float = RETENTION_HOURS):
     for name in os.listdir(CLIPS_DIR):
         path = os.path.join(CLIPS_DIR, name)
         if not os.path.isdir(path):
+            continue
+
+        if name == "_images":
+            # Uploaded story images are flat files, not per-build subdirs —
+            # sweep individual files by age and prune their registry entries.
+            for fname in os.listdir(path):
+                fpath = os.path.join(path, fname)
+                if _is_stale(fpath, max_age):
+                    try:
+                        os.remove(fpath)
+                    except OSError:
+                        pass
+                    stale_ids = [iid for iid, p in _images.items() if p == fpath]
+                    for iid in stale_ids:
+                        _images.pop(iid, None)
             continue
 
         if name in BUILD_DIRS:
