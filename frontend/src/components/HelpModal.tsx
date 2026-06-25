@@ -38,6 +38,22 @@ export default function HelpModal({ onClose, onOpenSettings }: { onClose: () => 
       ),
     },
     {
+      id: 'templates',
+      title: 'Project templates',
+      icon: '🎬',
+      body: (
+        <>
+          <p>When you create a project, pick a <strong>template</strong> to get a purpose-built builder instead of the plain notes list. Each one downloads/prepares its own clips and renders server-side with ffmpeg — just click in, configure, and Build.</p>
+          <p><strong>Ranking video</strong> — queue any number of saved clips into one ordered countdown, each with its own trim range and an optional "#N" rank badge overlay.</p>
+          <p><strong>Video commentary</strong> — the first saved clip plays full-frame; the second is overlaid as a reaction picture-in-picture in a corner you choose, with an adjustable size and border.</p>
+          <p><strong>Split-screen video</strong> — the first two saved clips fill one half each, stacked top/bottom or side-by-side. Audio mixes both, or falls back to whichever clip isn't muted.</p>
+          <p><strong>Still image story</strong> — upload your own images instead of pulling from clips. Set how long each is held, then choose <strong>Ken Burns</strong> (slow pan/zoom) or a <strong>static crossfade</strong> between slides.</p>
+          <p><strong>Text story</strong> — write a sequence of text slides on a plain background, Reddit-story style, with the same hard-cut/crossfade choice as image story.</p>
+          <p style={{ color: 'var(--muted)', fontSize: 12 }}>Every template shares the same <strong>Title overlay</strong> and <strong>Call to action</strong> sections — a persistent caption across the whole video, and an optional "Like &amp; Subscribe"-style prompt that can appear at the start, middle, and/or end with a fade or slide-in animation. All your settings for a project are saved automatically, so refreshing the page won't lose your work.</p>
+        </>
+      ),
+    },
+    {
       id: 'editor',
       title: 'Editing clips',
       icon: '✂',

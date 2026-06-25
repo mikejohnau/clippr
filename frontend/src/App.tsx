@@ -15,10 +15,10 @@ const MAX_HISTORY = 10
 const PROJECT_TEMPLATES: { id: ProjectTemplate; name: string; description: string }[] = [
   { id: 'general', name: 'General', description: 'A plain project — save and organize clips with notes.' },
   { id: 'ranking', name: 'Ranking video', description: 'Sequence multiple clips into one ordered countdown video with rank-label overlays.' },
-  { id: 'commentary', name: 'Video commentary', description: 'One main clip with a commentary/reaction overlay.' },
+  { id: 'commentary', name: 'Video commentary', description: 'A base clip full-frame with a second clip overlaid as a reaction picture-in-picture.' },
   { id: 'split_screen', name: 'Split-screen video', description: 'Two clips composited side-by-side or stacked.' },
-  { id: 'image_story', name: 'Still image story', description: 'A static image + text layout, not a video edit.' },
-  { id: 'text_story', name: 'Text story', description: 'A text-only narrative format, not a video edit.' },
+  { id: 'image_story', name: 'Still image story', description: 'Upload a set of images and turn them into a video with pan/zoom or crossfade motion.' },
+  { id: 'text_story', name: 'Text story', description: 'A sequence of text slides on a plain background, turned into a video — Reddit-story style.' },
 ]
 
 function detectPlatform(url: string): 'tiktok' | 'instagram' | null {
