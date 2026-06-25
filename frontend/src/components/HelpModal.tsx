@@ -37,7 +37,7 @@ export default function HelpModal({ onClose, onOpenSettings }: { onClose: () => 
           <p><strong>Rising Channels</strong> — momentum-scored channels (recent views ÷ subscribers) worth watching.</p>
           <p><strong>Trends sidebar</strong> — daily Google Trends topics by region. Click one to jump straight into a YouTube search for it.</p>
           <p><strong>Import by URL</strong> — paste a TikTok or Instagram link directly into the search hub and hit Search (or "Add clips") to pull it in without searching.</p>
-          <p><strong>TikTok / Instagram topic search</strong> — type a topic in the search bar, then click the TikTok or Instagram icon next to the URL field. This pulls in real results from that platform sorted by views, the same way YouTube search does. It only works if the server has an Apify API token configured (an <code>.env</code> setting, not in this app's UI), and each search costs a small amount on that Apify account, so it's not unlimited like everything else.</p>
+          <p><strong>TikTok / Instagram topic search</strong> — type a topic in the search bar, then click the TikTok or Instagram icon next to the URL field. This pulls in real results from that platform sorted by views, the same way YouTube search does. <strong>⚙ Filters</strong> (max age, minimum views, minimum likes) apply here too. It only works if the server has an Apify API token configured (an <code>.env</code> setting, not in this app's UI), and each search costs a small amount on that Apify account, so it's not unlimited like everything else.</p>
         </>
       ),
     },

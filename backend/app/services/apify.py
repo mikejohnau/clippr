@@ -39,12 +39,26 @@ async def _run_actor(actor_id: str, payload: dict, timeout_s: float = 90.0) -> l
         return r.json()
 
 
-async def search_tiktok(topic: str, max_items: int = 15, sort: str = "MOST_RELEVANT") -> list[Clip]:
+# Maps our YouTube-style "day/week/month/year" date_filter vocabulary onto
+# TikTok's own bucketed enum, so the actor only fetches the relevant window
+# instead of paying to scrape-then-discard older results. TikTok has no
+# exact "past year" bucket — ALL_TIME is the closest non-excluding option,
+# and the precise cutoff still gets enforced again in social.py afterward.
+_TIKTOK_DATE_BUCKETS = {
+    "day": "PAST_24_HOURS",
+    "week": "PAST_WEEK",
+    "month": "PAST_MONTH",
+    "year": "ALL_TIME",
+}
+
+
+async def search_tiktok(topic: str, max_items: int = 15, sort: str = "MOST_RELEVANT", date_filter: str = "") -> list[Clip]:
     items = await _run_actor(TIKTOK_ACTOR, {
         "searchQueries": [topic],
         "searchSection": "/video",
         "resultsPerPage": max_items,
         "videoSearchSorting": sort,
+        "videoSearchDateFilter": _TIKTOK_DATE_BUCKETS.get(date_filter, "ALL_TIME"),
     })
     clips = []
     for it in items:

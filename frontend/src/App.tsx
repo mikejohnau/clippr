@@ -79,6 +79,7 @@ export default function App() {
   const [dateFilter, setDateFilter] = useState('')
   const [durationFilter, setDurationFilter] = useState('')
   const [minViews, setMinViews] = useState(0)
+  const [minLikes, setMinLikes] = useState(0)
   const [showFilters, setShowFilters] = useState(false)
 
   // Search history
@@ -336,7 +337,11 @@ export default function App() {
     setSocialSearching(platform)
     setError('')
     try {
-      const res = await fetch(`/api/social/?topic=${encodeURIComponent(t)}&platform=${platform}&max_items=15`)
+      const params = new URLSearchParams({ topic: t, platform, max_items: '15' })
+      if (dateFilter) params.set('date_filter', dateFilter)
+      if (minViews) params.set('min_views', String(minViews))
+      if (minLikes) params.set('min_likes', String(minLikes))
+      const res = await fetch(`/api/social/?${params}`)
       if (!res.ok) throw new Error((await res.json()).detail || `${platform} search failed`)
       const data = await res.json()
       setCurrentTopic(t)
@@ -597,12 +602,12 @@ export default function App() {
                   style={{ paddingLeft: 32, height: 40, fontSize: 14 }} />
               </div>
               <button type="button" onClick={() => setShowFilters(f => !f)} style={{
-                background: (dateFilter || durationFilter || minViews) ? 'rgba(240,74,0,0.12)' : 'var(--surface2)',
-                color: (dateFilter || durationFilter || minViews) ? 'var(--accent)' : 'var(--muted)',
+                background: (dateFilter || durationFilter || minViews || minLikes) ? 'rgba(240,74,0,0.12)' : 'var(--surface2)',
+                color: (dateFilter || durationFilter || minViews || minLikes) ? 'var(--accent)' : 'var(--muted)',
                 border: '1.5px solid var(--border)', padding: '0 14px', height: 40, fontSize: 13, borderRadius: 8,
                 display: 'flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap', flexShrink: 0,
               }}>
-                ⚙ Filters{(dateFilter || durationFilter || minViews) ? ' ●' : ''}
+                ⚙ Filters{(dateFilter || durationFilter || minViews || minLikes) ? ' ●' : ''}
               </button>
               <button type="submit" disabled={loading} style={{
                 background: 'var(--accent)', color: '#fff', fontWeight: 700,
@@ -639,8 +644,17 @@ export default function App() {
                   <option value="1000000">1M+ views</option>
                   <option value="10000000">10M+ views</option>
                 </select>
-                {(dateFilter || durationFilter || minViews > 0) && (
-                  <button onClick={() => { setDateFilter(''); setDurationFilter(''); setMinViews(0) }}
+                <select value={String(minLikes)} onChange={e => setMinLikes(Number(e.target.value))}
+                  title="Only used by TikTok/Instagram topic search"
+                  style={{ fontSize: 13, padding: '5px 8px', flex: '1 1 120px', height: 36 }}>
+                  <option value="0">Any likes</option>
+                  <option value="1000">1K+ likes</option>
+                  <option value="10000">10K+ likes</option>
+                  <option value="100000">100K+ likes</option>
+                  <option value="1000000">1M+ likes</option>
+                </select>
+                {(dateFilter || durationFilter || minViews > 0 || minLikes > 0) && (
+                  <button onClick={() => { setDateFilter(''); setDurationFilter(''); setMinViews(0); setMinLikes(0) }}
                     style={{ background: 'none', color: 'var(--muted)', border: '1.5px solid var(--border)', fontSize: 13, padding: '0 10px', height: 36, borderRadius: 7 }}>
                     Clear
                   </button>
